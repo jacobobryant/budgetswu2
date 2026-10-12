@@ -25,3 +25,9 @@ Your cards, mobile (~375px wide), signed in
 |                                         |
 | [<- Previous]  Page 2 of 35  [Next ->]  |
 +-----------------------------------------+
+
+Notes:
+- Same content as the desktop mockup. While the user owns no cards, the
+  intro is replaced by the welcome box: "Welcome to BudgetSWU / Mark how
+  many copies of each card you own. Recommended decks are selected based
+  on the cost of cards you still need to buy."

@@ -32,3 +32,5 @@ Decks, mobile (~375px wide), signed in
 Notes:
 - Same layout as the home page on mobile, with the personal cost stat
   from the desktop Decks mockup.
+- If the user owns no cards, the intro reads: "Prices below assume you own
+  no cards yet. Add the cards you own to get updated recommendations."

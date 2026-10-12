@@ -25,4 +25,4 @@ Decks, desktop (>=640px wide), signed in
 Notes:
 - "Full $X" only appears when the user owns some of the deck's cards.
 - If the user owns no cards, the intro reads: "Prices below assume you own
-  no cards yet. Add the cards you own to see what you'd actually pay."
+  no cards yet. Add the cards you own to get updated recommendations."

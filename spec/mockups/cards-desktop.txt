@@ -5,8 +5,8 @@ Your cards, desktop (>=640px wide), signed in
 |--------------------------------------------------------------------------|
 | +----------------------------------------------------------------------+ |
 | | Welcome to BudgetSWU                                                 | |
-| | Mark how many copies of each card you own. Recommendations on Decks  | |
-| | will only count the cost of cards you still need to buy.             | |
+| | Mark how many copies of each card you own. Recommended decks are     | |
+| | selected based on the cost of cards you still need to buy.           | |
 | +----------------------------------------------------------------------+ |
 |                                                                          |
 | [ (o) Search cards                                                     ] |

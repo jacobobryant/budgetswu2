@@ -34,7 +34,7 @@
             "Prices below assume you own no cards yet. "
             [:a {:href (routes/cards) :class ui/link-class}
              "Add the cards you own"]
-            " to see what you'd actually pay."])]
+            " to get updated recommendations."])]
         (recommendations/recommendation-list recommendations
                                              {:personal true}))))))
 

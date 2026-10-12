@@ -168,8 +168,8 @@
           [:div {:class ["mb-6 rounded-lg bg-amber-200 p-4 text-stone-900 sm:p-6"]}
            [:h2 {:class ["text-lg font-bold"]} "Welcome to BudgetSWU"]
            [:p {:class ["mt-1"]}
-            (str "Mark how many copies of each card you own. Recommendations on "
-                 "Decks will only count the cost of cards you still need to buy.")]]
+            (str "Mark how many copies of each card you own. Recommended decks are "
+                 "selected based on the cost of cards you still need to buy.")]]
           [:p {:class ["mb-6 max-w-2xl text-stone-300"]}
            "Deck prices only count the cards you don't already own."])
         (search-bar)
