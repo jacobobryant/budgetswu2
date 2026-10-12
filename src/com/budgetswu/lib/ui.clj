@@ -9,8 +9,8 @@
   {:ui/title       "BudgetSWU"
    :ui/description nil
    :ui/lang        "en"
-   :ui/image       nil
-   :ui/icon        nil})
+   :ui/image       "/preview.png"
+   :ui/icon        "/favicon.ico"})
 
 (def ^:private datastar-script-url
   "https://cdn.jsdelivr.net/gh/starfederation/datastar@v1.0.1/bundles/datastar.js")
@@ -28,6 +28,12 @@
    :headers {"Content-Type" "text/html; charset=utf-8"}
    :body    (chassis/html body)})
 
+(defn- absolute-url
+  "Social media previews require absolute image URLs. Falls back to a relative
+  path when the domain isn't configured (e.g. in development)."
+  [{:keys [biff.tasks/domain]} path]
+  (str (when domain (str "https://" domain)) path))
+
 (defn page [opts & contents]
   (let [{:ui/keys [title description lang image icon init-datastar]}
         (merge default-page-opts opts)]
@@ -44,13 +50,10 @@
           [[:meta {:name "description" :content description}]
            [:meta {:property "og:description" :content description}]])
         (when image
-          [[:meta {:content image :property "og:image"}]
+          [[:meta {:content (absolute-url opts image) :property "og:image"}]
            [:meta {:content "summary_large_image" :name "twitter:card"}]])
         (when icon
-          [:link {:rel   "icon"
-                  :type  "image/png"
-                  :sizes "16x16"
-                  :href  icon}])
+          [:link {:rel "icon" :href (static-path icon)}])
         [:link {:rel "stylesheet" :href (static-path "/css/main.css")}]
         [:script {:src (static-path "/js/main.js")}]
         [:script {:type "module" :src datastar-script-url}]]

@@ -68,9 +68,11 @@
     [:p {:class ["rounded-lg bg-stone-800 p-6 text-stone-300 sm:p-8"]}
      "Recommendations are being prepared. Please check back later."]))
 
-(defn home-response [recommendations]
+(defn home-response [ctx recommendations]
   (ui/page
-   {:ui/title       "BudgetSWU — Star Wars: Unlimited decklists"
-    :ui/description "Affordable, high-performing Premier decklists."}
+   (assoc ctx
+          :ui/title       "BudgetSWU — Star Wars: Unlimited decklists"
+          :ui/description (str "Decklists for Star Wars: Unlimited, recommended "
+                               "based on price, performance, and popularity."))
    (ui/shell {:description description}
              (recommendation-list recommendations {}))))

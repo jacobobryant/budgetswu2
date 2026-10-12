@@ -6,12 +6,12 @@
 (defpipeline home
   [:com.budgetswu.fx/read-home-html]
 
-  (fn [_ html]
+  (fn [ctx html]
     (if html
       {:status  200
        :headers {"Content-Type" "text/html; charset=utf-8"}
        :body    html}
-      (recommendations/home-response []))))
+      (recommendations/home-response ctx []))))
 
 (def module
   {:biff.ring/routes

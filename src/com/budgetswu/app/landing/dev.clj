@@ -13,8 +13,8 @@
        [{:global/recommendations ranking/fields}]]
       {:biff.fx/return {:status 404 :body "Not found"}}))
 
-  (fn [_ {:keys [global/recommendations]}]
-    (recommendations/home-response recommendations)))
+  (fn [ctx {:keys [global/recommendations]}]
+    (recommendations/home-response ctx recommendations)))
 
 (def module
   {:biff.ring/routes

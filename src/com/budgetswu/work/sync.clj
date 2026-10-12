@@ -506,7 +506,7 @@
     (sync-merges-and-deletions ctx)
     (sync-prices ctx)
     (let [front (update-recommendations ctx)
-          html  (:body (recommendations/home-response front))]
+          html  (:body (recommendations/home-response ctx front))]
       (write-home ctx html)
       (prune-old-tournaments ctx meta)
       (count front))))
