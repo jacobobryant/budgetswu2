@@ -29,6 +29,8 @@
    :card/type        (s/text)
    :card/price-cents (s/int)
 
+   ;; Printing IDs are starwarsunlimited.com's internal IDs; external UIDs are
+   ;; the card IDs used in starwarsunlimited.com links.
    :printing/id               (s/text {:primary-key true})
    :printing/card-id          (s/text :required :index)
    :printing/card-set-id      (s/text :required)
@@ -50,6 +52,7 @@
    :meta/is-current (s/bool :required)
    :meta/set-id     (s/text)
 
+   ;; Tournament and decklist IDs are melee.gg's IDs.
    :tournament/id           (s/text {:primary-key true})
    :tournament/name         (s/text :required)
    :tournament/held-at      (s/text :required)
@@ -57,22 +60,17 @@
    :tournament/format       (s/text)
 
    :decklist/id            (s/text {:primary-key true})
-   :decklist/melee-id      (s/text)
    :decklist/tournament-id (s/text :required :index)
    :decklist/player-name   (s/text)
    :decklist/leader-id     (s/text)
    :decklist/base-id       (s/text)
    :decklist/format        (s/text)
+   :decklist/placement     (s/int)
 
    :deck-card/id          (s/text {:primary-key true})
    :deck-card/decklist-id (s/text :required :index)
    :deck-card/card-id     (s/text :required)
    :deck-card/quantity    (s/int :required)
-
-   :standing/id              (s/text {:primary-key true})
-   :standing/decklist-id     (s/text :index)
-   :standing/tournament-id   (s/text :required)
-   :standing/final-placement (s/int)
 
    :owned-card/id       s/pkey
    :owned-card/user-id  (s/ref :user/id :required {:unique-with [:owned-card/card-id]})

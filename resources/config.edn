@@ -42,6 +42,9 @@
  :com.budgetswu/home-file "storage/home.html"
  :com.budgetswu/dev-mode  #boolean #or [#biff/env DEV_MODE "false"]
 
+ :com.budgetswu/melee-email    #biff/env MELEE_EMAIL
+ :com.budgetswu/melee-password #biff/secret MELEE_PASSWORD
+
  :com.budgetswu/base-url        #biff/env BASE_URL
  :com.budgetswu/mailing-address #biff/env MAILING_ADDRESS
 

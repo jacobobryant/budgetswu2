@@ -18,13 +18,10 @@
                 :global/metas {:meta/id "HMW" :meta/is-current true}]
                [global/tournaments :tournament
                 :global/tournaments {:tournament/id "event"}]
-               [global/decklists :decklist
-                :global/decklists {:decklist/id "deck"}]
-               [global/leaders-and-bases :card
-                :global/leaders-and-bases
-                {:card/id "Lake Country" :card/type "Base"}]
                [global/card-sets :card-set
-                :global/card-sets {:card-set/id "SOR"}]
+                :global/card-sets {:card-set/id           "SOR"
+                                   :card-set/number       1
+                                   :card-set/published-on "2024-03-08"}]
                [global/standard-printings :printing
                 :global/standard-printings
                 {:printing/card-id          "Lake Country"
@@ -38,10 +35,10 @@
              (get (resolve-with resolver {table [row]}) output-key))))))
 
 (deftest recommendation-resolvers
-  (let [deck {:decklist/id              "deck"
-              :decklist/leader-id       "Luke"
-              :tournament/player-count  20
-              :standing/final-placement 1}
+  (let [deck {:decklist/id             "deck"
+              :decklist/leader-id      "Luke"
+              :decklist/placement      1
+              :tournament/player-count 20}
         card {:deck-card/decklist-id "deck"
               :deck-card/card-id     "x"
               :deck-card/quantity    50

@@ -47,10 +47,10 @@
                    [["Han" #{}] ["Leia" #{"Command"}]]))))))
 
 (deftest candidate
-  (let [deck    {:decklist/id              "deck"
-                 :decklist/leader-id       "Luke"
-                 :tournament/player-count  20
-                 :standing/final-placement 1}
+  (let [deck    {:decklist/id             "deck"
+                 :decklist/leader-id      "Luke"
+                 :decklist/placement      1
+                 :tournament/player-count 20}
         cards   [{:deck-card/card-id  "x"
                   :deck-card/quantity 50
                   :card/price-cents   200}]

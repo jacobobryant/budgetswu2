@@ -9,9 +9,15 @@
             [tick.core :as tick])
   (:import [java.net URLEncoder]))
 
-(def swuapi "https://api.swuapi.com")
+(def swu-cards "https://admin.starwarsunlimited.com/api/card-list")
+(def melee "https://melee.gg")
 (def tcgcsv "https://tcgcsv.com/tcgplayer/79")
-(def initial-watermark "1970-01-01T00:00:00Z")
+
+(def melee-premier-format-id "d312b6cd-1f2d-4d49-887c-8596673c43dd")
+
+;; Decklists are re-searched this far back on each sync, since tournaments can
+;; end and publish decklists after the date they're listed under.
+(def melee-lookback-days 7)
 
 (defpipeline execute
   (fn [_ statement]
@@ -29,28 +35,66 @@
   (fn [_ html]
     [:com.budgetswu.fx/write-home-html html]))
 
-(defpipeline fetch-json
-  (fn [_ url api-key]
-    [:biff.fx/http
-     {:url     url
-      :method  :get
-      :headers (cond-> {"User-Agent" "Mozilla/5.0 BudgetSWU"}
-                 (seq api-key)
-                 (assoc "Authorization" (str "Bearer " api-key)))}])
+(defn user-agent
+  "melee.gg rejects some user agents, including ones without a URL."
+  [{:com.budgetswu/keys [base-url]}]
+  (str "Mozilla/5.0 (compatible; BudgetSWU/1.0"
+       (when base-url (str "; +" base-url))
+       ")"))
 
-  (fn [_ response]
+(defpipeline request
+  (fn [ctx req]
+    [:biff.fx/http (-> req
+                       (update :method #(or % :get))
+                       (assoc-in [:headers "User-Agent"] (user-agent ctx)))]))
+
+(defn cookie-header
+  "Returns a Cookie header value from Set-Cookie header values."
+  [set-cookies]
+  (str/join "; "
+            (mapv #(first (str/split % #";"))
+                  (if (string? set-cookies) [set-cookies] set-cookies))))
+
+(def ^:private sign-in-token-pattern
+  #"name=\"__RequestVerificationToken\" type=\"hidden\" value=\"([^\"]+)\"")
+
+;; Signs in to melee.gg and returns a Cookie header value for the session.
+(defpipeline melee-sign-in
+  (fn [ctx]
+    [:biff.fx/http {:url     (str melee "/Account/SignIn")
+                    :method  :get
+                    :headers {"User-Agent" (user-agent ctx)}}])
+
+  (fn [ctx page]
+    (let [token   (second (re-find sign-in-token-pattern (:body page)))
+          cookies (get-in page [:headers "set-cookie"])]
+      (when-not token
+        (throw (ex-info "Couldn't find melee.gg's sign-in form" {})))
+      {:cookies  cookies
+       :response [:com.budgetswu.fx/melee-sign-in
+                  {:url     (str melee "/Account/SignInPassword")
+                   :token   token
+                   :headers {"User-Agent"       (user-agent ctx)
+                             "Cookie"           (cookie-header cookies)
+                             "X-Requested-With" "XMLHttpRequest"}}]}))
+
+  (fn [_ {:keys [cookies response]}]
     (let [body (json/parse-string (:body response) true)]
-      (when (false? (:success body))
-        (throw (ex-info "Data provider returned an error"
-                        {:url    (:url response)
-                         :errors (:errors body)})))
-      body)))
+      (when (or (not= 200 (:status response)) (:Error body))
+        (throw (ex-info "Couldn't sign in to melee.gg"
+                        {:status (:status response)})))
+      (str (cookie-header cookies) "; "
+           (cookie-header (get-in response [:headers "set-cookie"]))))))
+
+(defn- fetch-json [ctx url]
+  (json/parse-string (:body (request ctx {:url url})) true))
 
 (defn- query-string [params]
-  (str/join "&"
-            (mapv (fn [[k v]]
-                    (str (name k) "=" (URLEncoder/encode (str v) "UTF-8")))
-                  params)))
+  (let [encode #(URLEncoder/encode (str %) "UTF-8")]
+    (str/join "&"
+              (mapv (fn [[k v]]
+                      (str (encode (if (keyword? k) (name k) k)) "=" (encode v)))
+                    params))))
 
 (defn- url [base path params]
   (str base path (when (seq params) (str "?" (query-string params)))))
@@ -75,78 +119,7 @@
   (execute ctx (upsert :sync-state :sync-state/id
                        (assoc {:sync-state/id state-id} field value))))
 
-(defn- current-meta [ctx]
-  (fetch-json ctx (str swuapi "/metas/current?format=premiere") nil))
-
-(defn- date-in-meta? [meta tournament-date]
-  (let [date (some-> tournament-date (subs 0 10))]
-    (and date
-         (<= (compare (:start meta) date) 0)
-         (or (nil? (:end meta))
-             (neg? (compare date (:end meta)))))))
-
-(defn- reset-current-meta [ctx meta]
-  (let [prior   (first (filterv :meta/is-current
-                                (:global/metas
-                                 (graph-query ctx
-                                              [{:global/metas
-                                                [:meta/id
-                                                 :meta/is-current]}]))))
-        changed (not= (:meta/id prior) (:id meta))]
-    (when changed
-      (execute-tx ctx [{:delete-from :sync-state
-                        :where       [:in :sync-state/id
-                                      ["tournaments" "decklists" "standings"]]}
-                       {:update :meta :set {:meta/is-current false}}]))
-    (execute ctx
-             (upsert :meta :meta/id
-                     {:meta/id         (:id meta)
-                      :meta/start-date (:start meta)
-                      :meta/end-date   (:end meta)
-                      :meta/set-id     (:set meta)
-                      :meta/is-current true}))
-    changed))
-
-(defn- sync-feed [ctx path result-key state-id page-size extra-params f]
-  (let [since (or (state-value ctx state-id :sync-state/watermark)
-                  initial-watermark)]
-    (loop [after          nil
-           high-watermark since]
-      (let [params         (cond-> (merge {:since since :limit page-size}
-                                          extra-params)
-                             after (assoc :after after))
-            response       (fetch-json ctx (url swuapi path params) nil)
-            rows           (get response result-key)
-            next-cursor    (get-in response [:pagination :next_cursor])
-            next-watermark (reduce (fn [acc row]
-                                     (let [updated (:updated_at row)]
-                                       (if (and updated
-                                                (pos? (compare updated acc)))
-                                         updated acc)))
-                                   high-watermark rows)]
-        (when-not (vector? rows)
-          (throw (ex-info "Invalid data feed" {:path path})))
-        (run! #(f %) rows)
-        (if (and next-cursor (= page-size (count rows)))
-          (recur next-cursor next-watermark)
-          (save-state ctx state-id :sync-state/watermark next-watermark))))))
-
-(defn- sync-export [ctx entity f]
-  (loop [cursor nil]
-    (let [response    (fetch-json ctx
-                                  (url swuapi (str "/export/" entity)
-                                       (cond-> {:limit 5000}
-                                         cursor (assoc :cursor cursor)))
-                                  nil)
-          rows        (:data response)
-          next-cursor (:next_cursor response)]
-      (when-not (vector? rows)
-        (throw (ex-info "Invalid export" {:entity entity})))
-      (run! f rows)
-      (when (:has_more response)
-        (when-not (and (seq rows) (seq next-cursor))
-          (throw (ex-info "Invalid export cursor" {:entity entity})))
-        (recur next-cursor)))))
+;;;; Cards =====================================================================
 
 (defn card-id
   "Returns the ID shared by all printings of a card: its name and subtitle, in
@@ -162,243 +135,295 @@
   [serial-code]
   (some->> serial-code (re-find #"^\d\d") parse-long))
 
-(defn- sync-cards [ctx]
-  (sync-feed
-   ;; A new state ID forces a full resync, e.g. after adding printing columns.
-   ctx "/cards" :cards "cards-v4" 500 {}
-   (fn [printing]
-     (let [id (card-id printing)]
-       (execute-tx
-        ctx
-        (into [(upsert :card :card/id {:card/id id :card/type (:type printing)})
-               (upsert :card-set :card-set/id
-                       {:card-set/id     (:set_code printing)
-                        :card-set/number (set-number (:serial_code printing))})
-               (upsert :printing :printing/id
-                       {:printing/id               (:uuid printing)
-                        :printing/card-id          id
-                        :printing/card-set-id      (:set_code printing)
-                        :printing/collector-number (:collector_number printing)
-                        :printing/variant          (:variant_type printing)
-                        :printing/external-uid     (:external_uid printing)})
-               {:delete-from :card-aspect
-                :where       [:= :card-aspect/card-id id]}]
-              (mapv (fn [aspect]
-                      {:insert-into :card-aspect
-                       :values      [{:card-aspect/id      (str id ":" aspect)
-                                      :card-aspect/card-id id
-                                      :card-aspect/aspect  aspect}]})
-                    (set (:aspects printing)))))))))
+(defn- relation-name [relation]
+  (get-in relation [:data :attributes :name]))
 
-(defn- sync-tournaments [ctx meta]
-  (sync-export
-   ctx "tournaments"
-   (fn [tournament]
-     (when (and (= "Premier" (:format tournament))
-                (date-in-meta? meta (:date tournament))
-                (not (pos? (compare (subs (:date tournament) 0 10)
-                                    (str (tick/today))))))
-       (execute ctx
-                (upsert :tournament :tournament/id
-                        {:tournament/id      (:uuid tournament)
-                         :tournament/name    (or (:display_name tournament)
-                                                 (:name tournament))
-                         :tournament/held-at (:date tournament)
+(defn card-printing
+  "Returns the card, set, printing, and aspects for a printing from
+  starwarsunlimited.com, or nil if it has no set or number. Set codes and
+  collector numbers follow tcgcsv's conventions: the Hyperspace promos from sets
+  1-3 (e.g. serial 0102001) are in their own set (e.g. SORP), and tokens'
+  numbers are prefixed with T."
+  [{:keys [id attributes]}]
+  (let [{:keys [title subtitle cardNumber serialCode cardUid]} attributes
 
-                         :tournament/player-count
-                         (:player_count tournament)
+        code      (get-in attributes [:expansion :data :attributes :code])
+        card-type (relation-name (:type attributes))
+        set-id    (if (and serialCode
+                           (re-matches #"\d\d02\d{3}" serialCode)
+                           (< cardNumber 100))
+                    (str code "P")
+                    code)
+        id*       (card-id {:name title :subtitle subtitle})]
+    (when (and code cardNumber)
+      {:card     {:card/id id* :card/type card-type}
+       :card-set {:card-set/id     set-id
+                  :card-set/number (set-number serialCode)}
+       :printing {:printing/id               (str id)
+                  :printing/card-id          id*
+                  :printing/card-set-id      set-id
+                  :printing/collector-number (format "%s_%s%03d"
+                                                     set-id
+                                                     (if (str/includes? (str card-type) "Token")
+                                                       "T"
+                                                       "")
+                                                     cardNumber)
+                  :printing/variant          (get-in attributes
+                                                     [:variantTypes :data 0
+                                                      :attributes :name])
+                  :printing/external-uid     cardUid}
+       :aspects  (into #{}
+                       (map #(get-in % [:attributes :name]))
+                       (get-in attributes [:aspects :data]))})))
 
-                         :tournament/format (:format tournament)}))))))
+(defn- card-printing-tx [{:keys [card card-set printing aspects]}]
+  (into [(upsert :card :card/id card)
+         (upsert :card-set :card-set/id card-set)
+         (upsert :printing :printing/id printing)
+         {:delete-from :card-aspect
+          :where       [:= :card-aspect/card-id (:card/id card)]}]
+        (mapv (fn [aspect]
+                {:insert-into :card-aspect
+                 :values      [{:card-aspect/id      (str (:card/id card) ":" aspect)
+                                :card-aspect/card-id (:card/id card)
+                                :card-aspect/aspect  aspect}]})
+              aspects)))
 
-(defn- tournament-ids [ctx meta]
-  (into #{}
-        (comp (filter #(date-in-meta? meta (:tournament/held-at %)))
-              (map :tournament/id))
-        (:global/tournaments
-         (graph-query ctx
-                      [{:global/tournaments
-                        [:tournament/id :tournament/held-at]}]))))
+(defn- sync-cards
+  "Syncs printings updated since the last sync. A full sync first deletes
+  printings, which replaces any from earlier data sources."
+  [ctx]
+  (let [since (state-value ctx "swu-cards" :sync-state/watermark)]
+    (when-not since
+      (execute ctx {:delete-from :printing}))
+    (loop [page      1
+           watermark since]
+      (let [response  (fetch-json ctx
+                                  (url swu-cards ""
+                                       (cond-> [["locale" "en"]
+                                                ["sort[0]" "updatedAt:asc"]
+                                                ["sort[1]" "id:asc"]
+                                                ["pagination[page]" page]
+                                                ["pagination[pageSize]" 250]]
+                                         since (conj ["filters[updatedAt][$gt]" since]))))
+            items     (:data response)
+            watermark (reduce (fn [acc item]
+                                (let [updated (get-in item [:attributes :updatedAt])]
+                                  (if (or (nil? acc) (pos? (compare updated acc)))
+                                    updated
+                                    acc)))
+                              watermark
+                              items)]
+        (when-not (vector? items)
+          (throw (ex-info "Invalid card list" {:page page})))
+        (doseq [printing (keep card-printing items)]
+          (execute-tx ctx (card-printing-tx printing)))
+        (if (< page (get-in response [:meta :pagination :pageCount] 0))
+          (recur (inc page) watermark)
+          (when watermark
+            (save-state ctx "swu-cards" :sync-state/watermark watermark)))))))
 
-(declare delete-entity)
+;;;; Meta ======================================================================
 
-(defn- prune-old-tournaments [ctx meta]
-  (let [old-ids (into []
-                      (comp (remove #(date-in-meta?
-                                      meta (:tournament/held-at %)))
-                            (map :tournament/id))
-                      (:global/tournaments
-                       (graph-query ctx
-                                    [{:global/tournaments
-                                      [:tournament/id
-                                       :tournament/held-at]}])))]
-    (run! #(delete-entity ctx "tournament" %) old-ids)))
+(defn current-meta
+  "Returns the current meta, which starts when the latest numbered set is
+  released."
+  [card-sets today]
+  (when-let [card-set (->> card-sets
+                           (filterv #(and (:card-set/number %)
+                                          (:card-set/published-on %)
+                                          (<= (compare (:card-set/published-on %)
+                                                       (str today))
+                                              0)))
+                           (sort-by (juxt (comp - :card-set/number)
+                                          :card-set/published-on
+                                          :card-set/id))
+                           first)]
+    {:id    (:card-set/id card-set)
+     :start (:card-set/published-on card-set)}))
 
-(defn- main-cards [decklist]
-  (let [cards (:decklist decklist)]
-    (if (vector? cards)
-      (filterv (complement :sideboard) cards)
-      [])))
+(defn- reset-current-meta
+  "Records the current meta. When it changes, the decklist watermark is cleared
+  so that the next decklist sync replaces all tournaments."
+  [ctx meta]
+  (let [prior (first (filterv :meta/is-current
+                              (:global/metas
+                               (graph-query ctx
+                                            [{:global/metas
+                                              [:meta/id
+                                               :meta/is-current]}]))))]
+    (when (not= (:meta/id prior) (:id meta))
+      (execute-tx ctx [{:delete-from :sync-state
+                        :where       [:= :sync-state/id "melee-decklists"]}
+                       {:update :meta :set {:meta/is-current false}}]))
+    (execute ctx
+             (upsert :meta :meta/id
+                     {:meta/id         (:id meta)
+                      :meta/start-date (:start meta)
+                      :meta/end-date   nil
+                      :meta/set-id     (:id meta)
+                      :meta/is-current true}))))
 
-(defn- player-names [ctx]
-  (let [names (atom {})]
-    (sync-export ctx "players"
-                 (fn [player]
-                   (swap! names assoc (:uuid player) (:name player))))
-    @names))
+;;;; Decklists =================================================================
 
-(defn- card-types [ctx]
-  (into {}
-        (map (juxt :card/id :card/type))
-        (:global/leaders-and-bases
-         (graph-query ctx
-                      [{:global/leaders-and-bases [:card/id :card/type]}]))))
+(def ^:private search-columns
+  ["DecklistName" "Game" "FormatId" "FormatName" "OwnerDisplayName"
+   "TournamentName" "SortDate" "TeamRank" "TeamMatchWins" "OrganizationName"
+   "Records" "Archetypes" "TournamentTags" "LeaderName" "SecondaryName"])
 
-(defn- card-of-type [types cards card-type]
-  (first (filterv #(or (= card-type (:type %))
-                       (= card-type (get types (:name %))))
-                  cards)))
+(defn decklist-search-params
+  "Returns form params for melee.gg's decklist search (a DataTables endpoint)
+  for premier decklists from tournaments held between two dates, inclusive."
+  [start length from to]
+  (let [column-search {"Game"     "StarWarsUnlimited"
+                       "FormatId" melee-premier-format-id
+                       "SortDate" (str from "|" to)}]
+    (into {"draw"             "1"
+           "start"            (str start)
+           "length"           (str length)
+           "search[value]"    ""
+           "search[regex]"    "false"
+           "order[0][column]" (str (.indexOf ^java.util.List search-columns "SortDate"))
+           "order[0][dir]"    "desc"}
+          (comp (map-indexed vector)
+                (mapcat (fn [[i column]]
+                          (let [k #(str "columns[" i "]" %)]
+                            [[(k "[data]") column]
+                             [(k "[name]") column]
+                             [(k "[searchable]") "true"]
+                             [(k "[orderable]") "true"]
+                             [(k "[search][value]") (get column-search column "")]
+                             [(k "[search][regex]") "false"]]))))
+          search-columns)))
 
-(defn- sync-decklists [ctx valid-tournament-ids names]
-  (let [deck-ids (atom {})
-        types    (card-types ctx)]
-    (sync-export
-     ctx "decklists"
-     (fn [decklist]
-       (when (contains? valid-tournament-ids (:tournament_uuid decklist))
-         (let [deck-id (:uuid decklist)
-               cards   (main-cards decklist)
-               leader  (card-of-type types cards "Leader")
-               base    (card-of-type types cards "Base")]
-           (swap! deck-ids assoc [(:tournament_uuid decklist)
-                                  (:player_uuid decklist)] deck-id)
-           (execute-tx
-            ctx
-            (into [(upsert :decklist :decklist/id
-                           {:decklist/id       deck-id
-                            :decklist/melee-id (:melee_id decklist)
+(def ^:private deck-components
+  "melee.gg's component codes for the parts of a decklist we price. 99 is the
+  sideboard."
+  {0 :main 6 :leader 7 :base})
 
-                            :decklist/tournament-id
-                            (:tournament_uuid decklist)
+(defn melee-decklist
+  "Returns the tournament, decklist, and main deck cards (including the leader
+  and base) for a decklist search result."
+  [{:keys [Guid TournamentId TournamentName TournamentStartDate OwnerDisplayName
+           TeamRank Records]}]
+  (let [cards   (filterv #(contains? deck-components (:c %)) Records)
+        card-of #(some (fn [card]
+                         (when (= % (deck-components (:c card)))
+                           (card-id {:name (:n card) :subtitle (:s card)})))
+                       cards)]
+    {:tournament {:tournament/id      (str TournamentId)
+                  :tournament/name    TournamentName
+                  :tournament/held-at TournamentStartDate
+                  :tournament/format  "Premier"}
+     :decklist   {:decklist/id            Guid
+                  :decklist/tournament-id (str TournamentId)
+                  :decklist/player-name   OwnerDisplayName
+                  :decklist/leader-id     (card-of :leader)
+                  :decklist/base-id       (card-of :base)
+                  :decklist/format        "Premier"
+                  :decklist/placement     TeamRank}
+     :cards      (mapv (fn [[id quantity]]
+                         {:deck-card/id          (str Guid ":" id)
+                          :deck-card/decklist-id Guid
+                          :deck-card/card-id     id
+                          :deck-card/quantity    quantity})
+                       (reduce (fn [acc {:keys [n s q]}]
+                                 (update acc
+                                         (card-id {:name n :subtitle s})
+                                         (fnil + 0)
+                                         q))
+                               {}
+                               cards))}))
 
-                            :decklist/player-name
-                            (get names (:player_uuid decklist))
+(defn enrolled-players
+  "Returns the number of players from a melee.gg tournament page."
+  [html]
+  (some->> html
+           (re-find #"(\d+)(?: of \d+)? Enrolled Players?")
+           second
+           parse-long))
 
-                            :decklist/leader-id (:name leader)
-                            :decklist/base-id   (:name base)
+(defn- search-decklists [ctx cookies from to]
+  (let [page-size 500]
+    (loop [start 0
+           rows  []]
+      (let [response (json/parse-string
+                      (:body (request ctx
+                                      {:url         (str melee "/Decklist/SearchDecklists")
+                                       :method      :post
+                                       :headers     {"Cookie"           cookies
+                                                     "X-Requested-With" "XMLHttpRequest"}
+                                       :form-params (decklist-search-params
+                                                     start page-size from to)}))
+                      true)
+            rows     (into rows (:data response))]
+        (when-not (vector? (:data response))
+          (throw (ex-info "Invalid decklist search response" {:start start})))
+        (if (< (+ start page-size) (or (:recordsFiltered response) 0))
+          (recur (+ start page-size) rows)
+          rows)))))
 
-                            :decklist/format "Premier"})
-                   {:delete-from :deck-card
-                    :where       [:= :deck-card/decklist-id deck-id]}]
-                  (mapv (fn [{id :name collector :collector_number :as card}]
-                          {:insert-into :deck-card
-                           :values      [{:deck-card/id          (str deck-id ":" collector)
-                                          :deck-card/decklist-id deck-id
-                                          :deck-card/card-id     id
-                                          :deck-card/quantity    (:count card)}]})
-                        (filterv #(and (:name %) (:collector_number %))
-                                 cards))))))))
-    @deck-ids))
+(defn- delete-tournaments [ctx]
+  (execute-tx ctx [{:delete-from :deck-card}
+                   {:delete-from :decklist}
+                   {:delete-from :tournament}]))
 
-(defn- sync-standings [ctx valid-tournament-ids deck-ids]
-  (sync-export
-   ctx "standings"
-   (fn [standing]
-     (when (contains? valid-tournament-ids (:tournament_uuid standing))
-       (execute ctx
-                (upsert :standing :standing/id
-                        {:standing/id (:uuid standing)
+(defn decklist-search-start
+  "Returns the first date to search for decklists: the meta's start for a full
+  sync, otherwise the watermark."
+  [meta watermark]
+  (if (and watermark (pos? (compare watermark (:start meta))))
+    watermark
+    (:start meta)))
 
-                         :standing/decklist-id
-                         (or (:decklist_uuid standing)
-                             (get deck-ids [(:tournament_uuid standing)
-                                            (:player_uuid standing)]))
+(defn next-decklist-watermark [meta today]
+  (let [lookback (str (tick/<< today (tick/new-period melee-lookback-days :days)))]
+    (if (pos? (compare lookback (:start meta)))
+      lookback
+      (:start meta))))
 
-                         :standing/tournament-id
-                         (:tournament_uuid standing)
+(defn- sync-decklists
+  "Syncs decklists from ended tournaments in the current meta that were held
+  since the watermark. A full sync first deletes all tournaments, which replaces
+  any from an earlier meta or data source."
+  [ctx meta]
+  (let [watermark (state-value ctx "melee-decklists" :sync-state/watermark)
+        today     (tick/today)
+        rows      (search-decklists ctx
+                                    (melee-sign-in ctx)
+                                    (decklist-search-start meta watermark)
+                                    (str today))
+        _         (when-not watermark
+                    (delete-tournaments ctx))
+        known     (atom (into #{}
+                              (map :tournament/id)
+                              (:global/tournaments
+                               (graph-query ctx
+                                            [{:global/tournaments
+                                              [:tournament/id
+                                               :tournament/held-at]}]))))]
+    (doseq [{:keys [tournament decklist cards]}
+            (mapv melee-decklist
+                  (filterv #(= "Ended" (:TournamentStatusDescription %)) rows))]
+      (when-not (contains? @known (:tournament/id tournament))
+        (let [page (request ctx {:url (str melee "/Tournament/View/"
+                                           (:tournament/id tournament))})]
+          (execute ctx (upsert :tournament :tournament/id
+                               (assoc tournament
+                                      :tournament/player-count
+                                      (enrolled-players (:body page)))))
+          (swap! known conj (:tournament/id tournament))))
+      (execute-tx ctx
+                  (into [(upsert :decklist :decklist/id decklist)
+                         {:delete-from :deck-card
+                          :where       [:= :deck-card/decklist-id (:decklist/id decklist)]}]
+                        (mapv (fn [card]
+                                {:insert-into :deck-card :values [card]})
+                              cards))))
+    (save-state ctx "melee-decklists" :sync-state/watermark
+                (next-decklist-watermark meta today))))
 
-                         :standing/final-placement
-                         (:final_placement standing)}))))))
-
-(defn- event-time [event]
-  (or (:merged_at event) (:deleted_at event)))
-
-(defn- sync-events [ctx path result-key state-id f]
-  (let [since    (or (state-value ctx state-id :sync-state/watermark)
-                     initial-watermark)
-        response (fetch-json ctx (url swuapi path {:since since}) nil)
-        events   (get response result-key)]
-    (when-not (vector? events)
-      (throw (ex-info "Invalid event feed" {:path path})))
-    (run! f events)
-    (save-state ctx state-id :sync-state/watermark
-                (reduce (fn [acc event]
-                          (let [updated (event-time event)]
-                            (if (and updated
-                                     (pos? (compare updated acc)))
-                              updated acc)))
-                        since events))))
-
-(defn- delete-entity [ctx entity-type entity-id]
-  (case entity-type
-    "decklist" (execute-tx ctx
-                           [{:delete-from :deck-card
-                             :where       [:= :deck-card/decklist-id entity-id]}
-                            {:delete-from :standing
-                             :where       [:= :standing/decklist-id entity-id]}
-                            {:delete-from :decklist
-                             :where       [:= :decklist/id entity-id]}])
-    "tournament" (let [deck-ids
-                       (into []
-                             (comp (filter #(= entity-id
-                                               (:decklist/tournament-id %)))
-                                   (map :decklist/id))
-                             (:global/decklists
-                              (graph-query ctx
-                                           [{:global/decklists
-                                             [:decklist/id
-                                              :decklist/tournament-id]}])))]
-                   (run! #(delete-entity ctx "decklist" %) deck-ids)
-                   (execute-tx ctx
-                               [{:delete-from :standing
-                                 :where       [:= :standing/tournament-id entity-id]}
-                                {:delete-from :tournament
-                                 :where       [:= :tournament/id entity-id]}]))
-    "standing" (execute ctx {:delete-from :standing
-                             :where       [:= :standing/id entity-id]})
-    "card" (execute ctx {:delete-from :printing
-                         :where       [:= :printing/id entity-id]})
-    nil))
-
-(defn- sync-merges-and-deletions [ctx]
-  (sync-events
-   ctx "/merges" :merges "merges"
-   (fn [event]
-     (let [old-id (:from_uuid event)
-           new-id (:to_uuid event)]
-       (case (:entity_type event)
-         "decklist" (do
-                      (execute ctx {:update :standing
-                                    :set    {:standing/decklist-id new-id}
-                                    :where  [:= :standing/decklist-id old-id]})
-                      (execute ctx {:delete-from :deck-card
-                                    :where       [:= :deck-card/decklist-id old-id]})
-                      (execute ctx {:delete-from :decklist
-                                    :where       [:= :decklist/id old-id]}))
-         "tournament" (do
-                        (execute ctx {:update :decklist
-                                      :set    {:decklist/tournament-id new-id}
-                                      :where  [:= :decklist/tournament-id old-id]})
-                        (execute ctx {:update :standing
-                                      :set    {:standing/tournament-id new-id}
-                                      :where  [:= :standing/tournament-id old-id]})
-                        (execute ctx {:delete-from :tournament
-                                      :where       [:= :tournament/id old-id]}))
-         "standing" (delete-entity ctx "standing" old-id)
-         nil))))
-  (sync-events
-   ctx "/deletions" :deletions "deletions"
-   (fn [event]
-     (delete-entity ctx (:entity_type event) (:swuapi_uuid event)))))
+;;;; Prices ====================================================================
 
 (defn- product-collector-number [group product]
   (when-let [number (some (fn [field]
@@ -423,8 +448,8 @@
   for a tcgcsv group."
   [ctx group]
   (let [root       (str tcgcsv "/" (:groupId group))
-        products   (:results (fetch-json ctx (str root "/products") nil))
-        prices     (:results (fetch-json ctx (str root "/prices") nil))
+        products   (:results (fetch-json ctx (str root "/products")))
+        prices     (:results (fetch-json ctx (str root "/prices")))
         by-product (group-by :productId prices)]
     (reduce (fn [acc product]
               (let [collector (product-collector-number group product)
@@ -449,7 +474,7 @@
           printings))
 
 (defn- sync-prices [ctx]
-  (let [groups (:results (fetch-json ctx (str tcgcsv "/groups") nil))
+  (let [groups (:results (fetch-json ctx (str tcgcsv "/groups")))
 
         {:global/keys [card-sets standard-printings]}
         (graph-query ctx
@@ -546,22 +571,22 @@
           (log/error e "Failed to notify user" (:user/id user)))))))
 
 (defn sync-now [ctx]
-  (let [meta (current-meta ctx)]
+  (sync-cards ctx)
+  (sync-prices ctx)
+  (when-let [meta (current-meta (:global/card-sets
+                                 (graph-query ctx
+                                              [{:global/card-sets
+                                                [:card-set/id
+                                                 [:? :card-set/number]
+                                                 [:? :card-set/published-on]]}]))
+                                (tick/today))]
     (reset-current-meta ctx meta)
-    (sync-cards ctx)
-    (sync-tournaments ctx meta)
-    (let [ids      (tournament-ids ctx meta)
-          names    (player-names ctx)
-          deck-ids (sync-decklists ctx ids names)]
-      (sync-standings ctx ids deck-ids))
-    (sync-merges-and-deletions ctx)
-    (sync-prices ctx)
-    (let [front (update-recommendations ctx)
-          html  (:body (recommendations/home-response ctx front))]
-      (write-home ctx html)
-      (prune-old-tournaments ctx meta)
-      (notify-users ctx)
-      (count front))))
+    (sync-decklists ctx meta))
+  (let [front (update-recommendations ctx)
+        html  (:body (recommendations/home-response ctx front))]
+    (write-home ctx html)
+    (notify-users ctx)
+    (count front)))
 
 (defn- due? [last-attempt]
   (or (nil? last-attempt)

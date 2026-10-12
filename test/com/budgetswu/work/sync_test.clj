@@ -1,7 +1,8 @@
 (ns com.budgetswu.work.sync-test
   (:require [clojure.test :refer [deftest is testing]]
             [com.budgetswu.lib.notification-test :refer [deck]]
-            [com.budgetswu.work.sync :as sync]))
+            [com.budgetswu.work.sync :as sync]
+            [tick.core :as tick]))
 
 (deftest database-pipeline-states
   (let [statement {:select [:card/id] :from :card}]
@@ -14,16 +15,44 @@
     (is (= [:com.budgetswu.fx/write-home-html "<html></html>"]
            ((first (sync/write-home)) {} "<html></html>")))))
 
-(deftest fetch-json-states
-  (let [[request parse] (sync/fetch-json)
-        [_ params]      (request {} "https://example.com" "test-key")]
-    (is (= "Bearer test-key"
-           (get-in params [:headers "Authorization"])))
-    (is (= {:cards [{:id "x"}]}
-           (parse {} {:body "{\"cards\":[{\"id\":\"x\"}]}"})))
-    (testing "provider error responses are rejected"
+(deftest request-states
+  (let [[request] (sync/request)
+        [_ req]   (request {:com.budgetswu/base-url "https://example.com/"}
+                           {:url "https://example.com/x"})]
+    (is (= {:url     "https://example.com/x"
+            :method  :get
+            :headers {"User-Agent"
+                      "Mozilla/5.0 (compatible; BudgetSWU/1.0; +https://example.com/)"}}
+           req))))
+
+(deftest melee-sign-in-states
+  (let [[page sign-in finish] (sync/melee-sign-in)
+        page-response         {:body    (str "<input name=\"__RequestVerificationToken\""
+                                             " type=\"hidden\" value=\"tok\" />")
+                               :headers {"set-cookie" "a=1; path=/; HttpOnly"}}
+        result                (sign-in {} page-response)]
+    (is (= :biff.fx/http (first (page {}))))
+    (is (= [:com.budgetswu.fx/melee-sign-in
+            {:url     "https://melee.gg/Account/SignInPassword"
+             :token   "tok"
+             :headers {"User-Agent"       (sync/user-agent {})
+                       "Cookie"           "a=1"
+                       "X-Requested-With" "XMLHttpRequest"}}]
+           (:response result)))
+    (testing "the session cookie is added to the sign-in page's cookies"
+      (is (= "a=1; b=2; c=3"
+             (finish {} (assoc result :response
+                               {:status  200
+                                :body    "{\"RedirectUrl\":\"/\"}"
+                                :headers {"set-cookie" ["b=2; path=/" "c=3"]}})))))
+    (testing "failed sign-ins are rejected"
       (is (thrown? clojure.lang.ExceptionInfo
-                   (parse {} {:body "{\"success\":false}"}))))))
+                   (finish {} (assoc result :response
+                                     {:status 200
+                                      :body   "{\"Error\":true}"})))))
+    (testing "a missing sign-in form is rejected"
+      (is (thrown? clojure.lang.ExceptionInfo
+                   (sign-in {} {:body "<html></html>"}))))))
 
 (deftest tcgcsv-pricing
   (let [price     (var sync/nonfoil-price)
@@ -53,6 +82,123 @@
            {:printing/card-id "Han" :printing/collector-number "SOR_006"}
            {:printing/card-id "Leia" :printing/collector-number "SOR_007"}]
           {"SOR_005" 250 "JTL_010" 100 "SOR_006" 300}))))
+
+(defn- printing [& {:as attributes}]
+  {:id         12
+   :attributes (merge {:title        "Luke Skywalker"
+                       :subtitle     "Faithful Friend"
+                       :cardNumber   5
+                       :serialCode   "0101005"
+                       :cardUid      "2579145458"
+                       :type         {:data {:attributes {:name "Leader"}}}
+                       :expansion    {:data {:attributes {:code "SOR"}}}
+                       :variantTypes {:data [{:attributes {:name "Standard"}}]}
+                       :aspects      {:data [{:attributes {:name "Vigilance"}}
+                                             {:attributes {:name "Heroism"}}]}}
+                      attributes)})
+
+(deftest card-printing
+  (is (= {:card     {:card/id "Luke Skywalker, Faithful Friend" :card/type "Leader"}
+          :card-set {:card-set/id "SOR" :card-set/number 1}
+          :printing {:printing/id               "12"
+                     :printing/card-id          "Luke Skywalker, Faithful Friend"
+                     :printing/card-set-id      "SOR"
+                     :printing/collector-number "SOR_005"
+                     :printing/variant          "Standard"
+                     :printing/external-uid     "2579145458"}
+          :aspects  #{"Vigilance" "Heroism"}}
+         (sync/card-printing (printing))))
+  (testing "hyperspace promos from sets 1-3 have their own set"
+    (is (= ["SORP" "SORP_001"]
+           ((juxt :printing/card-set-id :printing/collector-number)
+            (:printing (sync/card-printing (printing :cardNumber 1
+                                                     :serialCode "0102001")))))))
+  (testing "main-set hyperspace printings don't"
+    (is (= "SOR_359"
+           (get-in (sync/card-printing (printing :cardNumber 359
+                                                 :serialCode "0102359"))
+                   [:printing :printing/collector-number]))))
+  (testing "token numbers are prefixed with T"
+    (is (= "LOF_T004"
+           (get-in (sync/card-printing
+                    (printing :cardNumber 4
+                              :serialCode "05020t04"
+                              :expansion {:data {:attributes {:code "LOF"}}}
+                              :type {:data {:attributes {:name "Token Upgrade"}}}))
+                   [:printing :printing/collector-number]))))
+  (testing "printings without a set or number are skipped"
+    (is (nil? (sync/card-printing (printing :expansion {:data nil}))))
+    (is (nil? (sync/card-printing (printing :cardNumber nil))))))
+
+(deftest current-meta
+  (let [sets [{:card-set/id "ASH" :card-set/number 8 :card-set/published-on "2026-07-17"}
+              {:card-set/id "HMW" :card-set/number 9 :card-set/published-on "2026-10-09"}
+              {:card-set/id "HMWP" :card-set/number 9 :card-set/published-on "2026-10-09"}
+              {:card-set/id "IC27" :card-set/number 10 :card-set/published-on "2026-11-20"}
+              {:card-set/id "P26" :card-set/published-on "2026-10-10"}]]
+    (is (= {:id "HMW" :start "2026-10-09"}
+           (sync/current-meta sets (tick/date "2026-10-12"))))
+    (is (= {:id "ASH" :start "2026-07-17"}
+           (sync/current-meta sets (tick/date "2026-10-08"))))
+    (is (nil? (sync/current-meta [] (tick/date "2026-10-12"))))))
+
+(deftest decklist-watermarks
+  (let [meta {:id "HMW" :start "2026-10-09"}]
+    (is (= "2026-10-09" (sync/decklist-search-start meta nil)))
+    (is (= "2026-10-09" (sync/decklist-search-start meta "2026-07-01")))
+    (is (= "2026-10-20" (sync/decklist-search-start meta "2026-10-20")))
+    (is (= "2026-10-09" (sync/next-decklist-watermark meta (tick/date "2026-10-12"))))
+    (is (= "2026-10-23" (sync/next-decklist-watermark meta (tick/date "2026-10-30"))))))
+
+(deftest melee-decklist
+  (is (= {:tournament {:tournament/id      "457640"
+                       :tournament/name    "PAX Aus Open 2026"
+                       :tournament/held-at "2026-10-10T00:00:00Z"
+                       :tournament/format  "Premier"}
+          :decklist   {:decklist/id            "guid"
+                       :decklist/tournament-id "457640"
+                       :decklist/player-name   "Gunn3d"
+                       :decklist/leader-id     "Leia Organa, Someone Who Loves You"
+                       :decklist/base-id       "Daimyo's Palace"
+                       :decklist/format        "Premier"
+                       :decklist/placement     39}
+          :cards      [{:deck-card/id          "guid:Leia Organa, Someone Who Loves You"
+                        :deck-card/decklist-id "guid"
+                        :deck-card/card-id     "Leia Organa, Someone Who Loves You"
+                        :deck-card/quantity    1}
+                       {:deck-card/id          "guid:Daimyo's Palace"
+                        :deck-card/decklist-id "guid"
+                        :deck-card/card-id     "Daimyo's Palace"
+                        :deck-card/quantity    1}
+                       {:deck-card/id          "guid:Common Cause"
+                        :deck-card/decklist-id "guid"
+                        :deck-card/card-id     "Common Cause"
+                        :deck-card/quantity    3}]}
+         (sync/melee-decklist
+          {:Guid                "guid"
+           :TournamentId        457640
+           :TournamentName      "PAX Aus Open 2026"
+           :TournamentStartDate "2026-10-10T00:00:00Z"
+           :OwnerDisplayName    "Gunn3d"
+           :TeamRank            39
+           :Records             [{:n "Leia Organa" :s "Someone Who Loves You" :q 1 :c 6}
+                                 {:n "Daimyo's Palace" :s nil :q 1 :c 7}
+                                 {:n "Common Cause" :s nil :q 2 :c 0}
+                                 {:n "Common Cause" :s nil :q 1 :c 0}
+                                 {:n "Zeb Orellios" :s "Spectre Four" :q 2 :c 99}]}))))
+
+(deftest melee-pages
+  (is (= 47 (sync/enrolled-players
+             "<i class=\"fa fa-user mr-1\"></i>47 of 96 Enrolled Players\n")))
+  (is (= 12 (sync/enrolled-players "12 Enrolled Players")))
+  (is (nil? (sync/enrolled-players "<html></html>")))
+  (is (= "a=1; b=2" (sync/cookie-header ["a=1; path=/" "b=2; HttpOnly"])))
+  (let [params (sync/decklist-search-params 500 500 "2026-10-09" "2026-10-12")]
+    (is (= "500" (get params "start")))
+    (is (= "SortDate" (get params "columns[6][data]")))
+    (is (= "2026-10-09|2026-10-12" (get params "columns[6][search][value]")))
+    (is (= "StarWarsUnlimited" (get params "columns[1][search][value]")))
+    (is (= sync/melee-premier-format-id (get params "columns[2][search][value]")))))
 
 (def ctx
   {:com.budgetswu/base-url        "https://example.com/"

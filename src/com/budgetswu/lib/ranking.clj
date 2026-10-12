@@ -59,7 +59,7 @@
 (defn candidate [deck cards popularity owned]
   (let [prices     (deck-prices cards owned)
         percentile (placement-percentile
-                    (:standing/final-placement deck)
+                    (:decklist/placement deck)
                     (:tournament/player-count deck))]
     (when (and (some? prices)
                (some? percentile)
@@ -68,14 +68,14 @@
       (merge
        popularity
        {:recommendation/id               (:decklist/id deck)
-        :recommendation/melee-id         (:decklist/melee-id deck)
+        :recommendation/melee-id         (:decklist/id deck)
         :recommendation/leader-name      (:decklist/leader-id deck)
         :recommendation/base-name        (:decklist/base-id deck)
         :recommendation/player-name      (:decklist/player-name deck)
         :recommendation/tournament-name  (:tournament/name deck)
         :recommendation/tournament-date  (:tournament/held-at deck)
         :recommendation/player-count     (:tournament/player-count deck)
-        :recommendation/placement        (:standing/final-placement deck)
+        :recommendation/placement        (:decklist/placement deck)
         :recommendation/price-cents      (:remaining prices)
         :recommendation/full-price-cents (:full prices)
         :recommendation/percentile       percentile}))))
@@ -137,17 +137,15 @@
 
 (def deck-query
   {:select [:decklist/id
-            :decklist/melee-id
             :decklist/leader-id
             :decklist/base-id
             :decklist/player-name
+            :decklist/placement
             :tournament/name
             :tournament/held-at
-            :tournament/player-count
-            :standing/final-placement]
+            :tournament/player-count]
    :from   :decklist
-   :join   [:tournament [:= :decklist/tournament-id :tournament/id]
-            :standing [:= :standing/decklist-id :decklist/id]]})
+   :join   [:tournament [:= :decklist/tournament-id :tournament/id]]})
 
 (def current-meta-where
   [:and

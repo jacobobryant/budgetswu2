@@ -34,10 +34,10 @@
                          {:owned-card [row]})))))
 
 (deftest recommendations
-  (let [rows  {:decklist  [{:decklist/id              "deck"
-                            :decklist/leader-id       "Luke"
-                            :tournament/player-count  20
-                            :standing/final-placement 1}]
+  (let [rows  {:decklist  [{:decklist/id             "deck"
+                            :decklist/leader-id      "Luke"
+                            :decklist/placement      1
+                            :tournament/player-count 20}]
                :deck-card [{:deck-card/decklist-id "deck"
                             :deck-card/card-id     "x"
                             :deck-card/quantity    50

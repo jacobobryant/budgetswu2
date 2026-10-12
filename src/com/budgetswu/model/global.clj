@@ -39,36 +39,15 @@
   (fn [_ rows]
     {:global/tournaments rows}))
 
-(defresolver decklists
-  {:output [{:global/decklists
-             [:decklist/id :decklist/tournament-id]}]}
-
-  (fn [_ _]
-    [:biff.sqlite.fx/execute
-     {:select [:decklist/id :decklist/tournament-id]
-      :from   :decklist}])
-
-  (fn [_ rows]
-    {:global/decklists rows}))
-
-(defresolver leaders-and-bases
-  {:output [{:global/leaders-and-bases [:card/id :card/type]}]}
-
-  (fn [_ _]
-    [:biff.sqlite.fx/execute
-     {:select [:card/id :card/type]
-      :from   :card
-      :where  [:in :card/type ["Leader" "Base"]]}])
-
-  (fn [_ rows]
-    {:global/leaders-and-bases rows}))
-
 (defresolver card-sets
-  {:output [{:global/card-sets [:card-set/id]}]}
+  {:output [{:global/card-sets [:card-set/id
+                                [:? :card-set/number]
+                                [:? :card-set/published-on]]}]}
 
   (fn [_ _]
     [:biff.sqlite.fx/execute
-     {:select [:card-set/id] :from :card-set}])
+     {:select [:card-set/id :card-set/number :card-set/published-on]
+      :from   :card-set}])
 
   (fn [_ rows]
     {:global/card-sets rows}))
@@ -156,8 +135,6 @@
    [sync-states
     metas
     tournaments
-    decklists
-    leaders-and-bases
     card-sets
     standard-printings
     front

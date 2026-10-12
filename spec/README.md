@@ -11,20 +11,33 @@ comes from TCGPlayer, although we fetch the data from 3rd parties.
 
 ### External data
 
-We use the public api.swuapi.com endpoints to sync the following data into our
-application's database:
+We sync the following data into our application's database:
 
-- cards
-- current meta
-- decklists, including tournament percentile placement (e.g. "3rd place out of
-  60"). We only sync premier decklists. We only sync decklists from the current
-  meta.
+- cards, from the API that powers https://starwarsunlimited.com/cards
+  (https://admin.starwarsunlimited.com/api/card-list).
+- decklists from melee.gg, including tournament percentile placement (e.g. "3rd
+  place out of 60"). We only sync premier decklists from tournaments that have
+  ended. We only sync decklists from the current meta.
 
-Cards use the incremental feed described at
-https://api.swuapi.com/docs#incremental-sync. Tournaments, players, decklists,
-and standings use paginated public exports at
-https://api.swuapi.com/docs#export-entity; their incremental feeds require an
-API key. No API key is needed for this application.
+melee.gg doesn't have a public API, so we use the internal endpoints that power
+its website. Decklist search requires signing in, so there are `MELEE_EMAIL`
+and `MELEE_PASSWORD` settings for a melee.gg account. A decklist's placement is
+its final rank in the tournament (including top cut), and a tournament's player
+count is its number of enrolled players.
+
+The current meta starts when the latest numbered set (e.g. set 9) is released,
+using the set's release date from tcgcsv. When the meta changes, we delete all
+tournaments and decklists and sync the new meta's from scratch.
+
+Syncing is incremental to avoid unnecessary load on starwarsunlimited.com and
+melee.gg:
+
+- Cards: we only fetch printings updated since the most recent update we've
+  synced.
+- Decklists: we search for decklists from tournaments held since the start of
+  the meta on the first sync, and from the past 7 days after that (tournaments
+  can end and publish decklists after the date they're listed under). We only
+  fetch a tournament's page (for its player count) the first time we see it.
 
 Cards are sometimes printed as part of multiple sets, i.e. a card can have
 multiple printings. We do not store separate prices or user-owned quantities
@@ -34,8 +47,8 @@ card.
 We sync pricing data from tcgcsv.com. We store the lowest non-foil price for
 each card (for any of its printings).
 
-There is a single background job that syncs data from both providers (swuapi and
-tcgcsv). It runs every 12 hours. It's last attempted sync time is recorded
+There is a single background job that syncs data from all providers
+(starwarsunlimited.com, melee.gg, and tcgcsv). It runs every 12 hours. It's last attempted sync time is recorded
 persistently so that restarting the application doesn't cause a sync sooner than
 12 hours.
 

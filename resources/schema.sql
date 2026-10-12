@@ -39,7 +39,7 @@ CREATE TABLE decklist (
   base_id TEXT,
   format TEXT,
   leader_id TEXT,
-  melee_id TEXT,
+  placement INT,
   player_name TEXT
 ) STRICT;
 
@@ -63,13 +63,6 @@ CREATE TABLE printing (
 CREATE TABLE recommendation (
   id TEXT PRIMARY KEY NOT NULL,
   rank INT NOT NULL
-) STRICT;
-
-CREATE TABLE standing (
-  id TEXT PRIMARY KEY NOT NULL,
-  tournament_id TEXT NOT NULL,
-  decklist_id TEXT,
-  final_placement INT
 ) STRICT;
 
 CREATE TABLE sync_state (
@@ -127,5 +120,4 @@ CREATE INDEX idx_notification_created_at ON notification(created_at);
 CREATE INDEX idx_notification_user_id ON notification(user_id);
 CREATE INDEX idx_printing_card_id ON printing(card_id);
 CREATE INDEX idx_printing_collector_number ON printing(collector_number);
-CREATE INDEX idx_standing_decklist_id ON standing(decklist_id);
 CREATE INDEX idx_user_joined_at ON user(joined_at);
