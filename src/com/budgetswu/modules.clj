@@ -7,15 +7,16 @@
             [com.biffweb.ring :as biff.ring]
             [com.budgetswu.app.admin :as app.admin]
             [com.budgetswu.app.auth :as app.auth]
-            [com.budgetswu.app.demo :as app.demo]
+            [com.budgetswu.app.cards :as app.cards]
+            [com.budgetswu.app.for-you :as app.for-you]
             [com.budgetswu.app.landing :as app.landing]
             [com.budgetswu.app.landing.dev :as app.landing.dev]
             [com.budgetswu.fx :as fx]
             [com.budgetswu.lib.ui :as lib.ui]
             [com.budgetswu.model.sqlite :as model.sqlite]
-            [com.budgetswu.model.tab :as model.tab]
             [com.budgetswu.model.user :as model.user]
             [com.budgetswu.model.global :as model.global]
+            [com.budgetswu.model.request :as model.request]
             [com.budgetswu.work.sync :as work.sync]))
 
 (def modules
@@ -29,14 +30,15 @@
    (biff.graph/module)
    model.user/module
    model.sqlite/module
-   model.tab/module
    model.global/module
+   model.request/module
    work.sync/module
    app.admin/module
    app.landing/module
    app.landing.dev/module
    app.auth/module
-   app.demo/module])
+   app.for-you/module
+   app.cards/module])
 
 (def start-order
   [:biff.config/module

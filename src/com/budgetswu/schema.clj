@@ -1,25 +1,34 @@
 (ns com.budgetswu.schema
-  (:require [com.biffweb.sqlite.schema :as s :refer [?]]))
+  (:require [com.biffweb.sqlite.schema :as s]))
 
-(def tab-state-schema
-  [:map
-   [:tab/background-color ? [:enum :white :red :blue :green]]])
+(def max-owned-quantity 3)
+
+(def max-search-length 100)
 
 (def columns
-  {:tab-state/id   s/pkey
-   :tab-state/data (s/edn tab-state-schema)
+  {:tab-state/id          s/pkey
+   :tab-state/card-search (s/text)
+   :tab-state/card-page   (s/int)
 
    :user/id           s/pkey
    :user/email        (s/text :required :unique)
    :user/joined-at    (s/inst :required :index)
    :user/display-name (s/text)
 
-   :card/id               (s/text {:primary-key true})
-   :card/collector-number (s/text :required :index)
-   :card/name             (s/text :required)
-   :card/variant          (s/text)
-   :card/set-code         (s/text)
-   :card/type             (s/text)
+   :card/id          (s/text {:primary-key true})
+   :card/type        (s/text)
+   :card/price-cents (s/int)
+
+   :printing/id               (s/text {:primary-key true})
+   :printing/card-id          (s/text :required :index)
+   :printing/card-set-id      (s/text :required)
+   :printing/collector-number (s/text :required :index)
+   :printing/variant          (s/text)
+   :printing/external-uid     (s/text)
+
+   :card-set/id           (s/text {:primary-key true})
+   :card-set/number       (s/int)
+   :card-set/published-on (s/text)
 
    :card-aspect/id      (s/text {:primary-key true})
    :card-aspect/card-id (s/text :required :index)
@@ -29,6 +38,7 @@
    :meta/start-date (s/text :required)
    :meta/end-date   (s/text)
    :meta/is-current (s/bool :required)
+   :meta/set-id     (s/text)
 
    :tournament/id           (s/text {:primary-key true})
    :tournament/name         (s/text :required)
@@ -40,24 +50,24 @@
    :decklist/melee-id      (s/text)
    :decklist/tournament-id (s/text :required :index)
    :decklist/player-name   (s/text)
-   :decklist/leader-name   (s/text)
-   :decklist/base-name     (s/text)
-   :decklist/base-number   (s/text)
+   :decklist/leader-id     (s/text)
+   :decklist/base-id       (s/text)
    :decklist/format        (s/text)
 
-   :deck-card/id               (s/text {:primary-key true})
-   :deck-card/decklist-id      (s/text :required :index)
-   :deck-card/collector-number (s/text :required)
-   :deck-card/quantity         (s/int :required)
+   :deck-card/id          (s/text {:primary-key true})
+   :deck-card/decklist-id (s/text :required :index)
+   :deck-card/card-id     (s/text :required)
+   :deck-card/quantity    (s/int :required)
 
    :standing/id              (s/text {:primary-key true})
    :standing/decklist-id     (s/text :index)
    :standing/tournament-id   (s/text :required)
    :standing/final-placement (s/int)
 
-   :card-price/id         (s/text {:primary-key true})
-   :card-price/cents      (s/int :required)
-   :card-price/product-id (s/int :required)
+   :owned-card/id       s/pkey
+   :owned-card/user-id  (s/ref :user/id :required {:unique-with [:owned-card/card-id]})
+   :owned-card/card-id  (s/text :required)
+   :owned-card/quantity (s/int :required)
 
    :sync-state/id           (s/text {:primary-key true})
    :sync-state/watermark    (s/text)
@@ -89,6 +99,10 @@
 
     :tab-state
     (every? #{tab-id} (keep :tab-state/id [before after]))
+
+    :owned-card
+    (and (every? #{uid} (keep :owned-card/user-id [before after]))
+         (or (nil? after) (<= 0 (:owned-card/quantity after) max-owned-quantity)))
 
     false))
 

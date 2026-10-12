@@ -1,0 +1,34 @@
+Decks, mobile (~375px wide), signed in
+
++-----------------------------------------+
+| BUDGETSWU                               |
+| [Decks]  Your cards  Sign out           |
+|-----------------------------------------|
+| Prices below only count the cards you   |
+| don't already own.                      |
+|                                         |
+| +-------------------------------------+ |
+| | 1. Boba Fett, Krayt's Claw          | |
+| | Commander                           | |
+| | Contested Caverns                   | |
+| | Leopoldo Morales · Invictvs Rosario | |
+| | Store Showdown (HMW) · 2026-10-10   | |
+| |                                     | |
+| | +---------+ +---------+ +---------+ | |
+| | |YOUR COST| |PLACED   | |POPULARIT| | |
+| | |$6.27    | |7 of 9   | |#19 of 46| | |
+| | |Full     | |         | |         | | |
+| | |$7.89    | |         | |         | | |
+| | +---------+ +---------+ +---------+ | |
+| |                                     | |
+| | +---------------------------------+ | |
+| | |    View decklist on melee.gg    | | |
+| | +---------------------------------+ | |
+| +-------------------------------------+ |
+|                                         |
+| ...                                     |
++-----------------------------------------+
+
+Notes:
+- Same layout as the home page on mobile, with the personal cost stat
+  from the desktop Decks mockup.

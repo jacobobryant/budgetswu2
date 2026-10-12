@@ -1,0 +1,45 @@
+Your cards, desktop (>=640px wide), signed in
+
++--------------------------------------------------------------------------+
+| BUDGETSWU                            Decks   [Your cards]   Sign out     |
+|--------------------------------------------------------------------------|
+| +----------------------------------------------------------------------+ |
+| | Welcome to BudgetSWU                                                 | |
+| | Mark how many copies of each card you own. Recommendations on Decks  | |
+| | will only count the cost of cards you still need to buy.             | |
+| +----------------------------------------------------------------------+ |
+|                                                                          |
+| [ (o) Search cards                                                     ] |
+|                                                                          |
+| [<- Previous]              Page 2 of 35                       [Next ->]  |
+|                                                                          |
+| +----------------------------------------------------------------------+ |
+| | Chimaera, A Frightening Reality                     [0] 1   2   3    | |
+| | Unit · $38.32                                                        | |
+| |----------------------------------------------------------------------| |
+| | Nightbrother, Maul's Gauntlet                        0 [1]  2   3    | |
+| | Unit · $31.15                                                        | |
+| |----------------------------------------------------------------------| |
+| | ...                                                                  | |
+| +----------------------------------------------------------------------+ |
+|                                                                          |
+| [<- Previous]              Page 2 of 35                       [Next ->]  |
++--------------------------------------------------------------------------+
+
+Notes:
+- The welcome box is shown only while the user owns no cards. Otherwise it
+  is replaced by: "Deck prices only count the cards you don't already own."
+- Only legal, priced cards are listed, most expensive first, 50 per page.
+- Card titles link to the card's starwarsunlimited.com page in a new tab,
+  marked with an external-link icon (inline SVG) after the title.
+- The search bar does fuzzy-find-style (fzf-like) matching on card names:
+  each space-separated term's letters must appear in order. Results are
+  ranked by match quality, then price. Results update as you type (no
+  search button) and pagination keeps the search. A page reload starts
+  over with an empty search on page 1.
+- If nothing matches, the list is replaced by "No cards match your search."
+- Pagination controls appear both above and below the list. Clicking
+  Previous/Next swaps the list in place without changing the scroll
+  position. Both buttons are always shown; Previous is disabled on the
+  first page and Next on the last.
+- [n] is the selected count. Clicking a count saves it immediately.

@@ -10,11 +10,8 @@ CREATE TABLE biff_sqlite_kv (
 
 CREATE TABLE card (
   id TEXT PRIMARY KEY NOT NULL,
-  collector_number TEXT NOT NULL,
-  name TEXT NOT NULL,
-  set_code TEXT,
-  type TEXT,
-  variant TEXT
+  price_cents INT,
+  type TEXT
 ) STRICT;
 
 CREATE TABLE card_aspect (
@@ -23,15 +20,15 @@ CREATE TABLE card_aspect (
   card_id TEXT NOT NULL
 ) STRICT;
 
-CREATE TABLE card_price (
+CREATE TABLE card_set (
   id TEXT PRIMARY KEY NOT NULL,
-  cents INT NOT NULL,
-  product_id INT NOT NULL
+  number INT,
+  published_on TEXT
 ) STRICT;
 
 CREATE TABLE deck_card (
   id TEXT PRIMARY KEY NOT NULL,
-  collector_number TEXT NOT NULL,
+  card_id TEXT NOT NULL,
   decklist_id TEXT NOT NULL,
   quantity INT NOT NULL
 ) STRICT;
@@ -39,10 +36,9 @@ CREATE TABLE deck_card (
 CREATE TABLE decklist (
   id TEXT PRIMARY KEY NOT NULL,
   tournament_id TEXT NOT NULL,
-  base_name TEXT,
-  base_number TEXT,
+  base_id TEXT,
   format TEXT,
-  leader_name TEXT,
+  leader_id TEXT,
   melee_id TEXT,
   player_name TEXT
 ) STRICT;
@@ -51,7 +47,17 @@ CREATE TABLE meta (
   id TEXT PRIMARY KEY NOT NULL,
   is_current INT NOT NULL,
   start_date TEXT NOT NULL,
-  end_date TEXT
+  end_date TEXT,
+  set_id TEXT
+) STRICT;
+
+CREATE TABLE printing (
+  id TEXT PRIMARY KEY NOT NULL,
+  card_id TEXT NOT NULL,
+  card_set_id TEXT NOT NULL,
+  collector_number TEXT NOT NULL,
+  external_uid TEXT,
+  variant TEXT
 ) STRICT;
 
 CREATE TABLE recommendation (
@@ -74,7 +80,8 @@ CREATE TABLE sync_state (
 
 CREATE TABLE tab_state (
   id BLOB PRIMARY KEY NOT NULL,
-  data BLOB
+  card_page INT,
+  card_search TEXT
 ) STRICT;
 
 CREATE TABLE tournament (
@@ -93,9 +100,19 @@ CREATE TABLE user (
   UNIQUE(email)
 ) STRICT;
 
-CREATE INDEX idx_card_collector_number ON card(collector_number);
+CREATE TABLE owned_card (
+  id BLOB PRIMARY KEY NOT NULL,
+  card_id TEXT NOT NULL,
+  quantity INT NOT NULL,
+  user_id BLOB NOT NULL,
+  FOREIGN KEY(user_id) REFERENCES user(id),
+  UNIQUE(user_id, card_id)
+) STRICT;
+
 CREATE INDEX idx_card_aspect_card_id ON card_aspect(card_id);
 CREATE INDEX idx_deck_card_decklist_id ON deck_card(decklist_id);
 CREATE INDEX idx_decklist_tournament_id ON decklist(tournament_id);
+CREATE INDEX idx_printing_card_id ON printing(card_id);
+CREATE INDEX idx_printing_collector_number ON printing(collector_number);
 CREATE INDEX idx_standing_decklist_id ON standing(decklist_id);
 CREATE INDEX idx_user_joined_at ON user(joined_at);

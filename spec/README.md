@@ -1,4 +1,4 @@
-# Budgetswu
+# BudgetSWU
 
 This application has features related to the TCG "Star Wars: Unlimited."
 
@@ -26,8 +26,13 @@ and standings use paginated public exports at
 https://api.swuapi.com/docs#export-entity; their incremental feeds require an
 API key. No API key is needed for this application.
 
+Cards are sometimes printed as part of multiple sets, i.e. a card can have
+multiple printings. We do not store separate prices or user-owned quantities
+(see below) for each printing; those values are associated with the overall
+card.
+
 We sync pricing data from tcgcsv.com. We store the lowest non-foil price for
-each card.
+each card (for any of its printings).
 
 There is a single background job that syncs data from both providers (swuapi and
 tcgcsv). It runs every 12 hours. It's last attempted sync time is recorded
@@ -67,7 +72,9 @@ popularity but different placement (one would be dominated).
 ### UI
 
 Recommendations are displayed directly on the home page. Users are not shown a
-sign-in form, and sign-in is not required to view the recommendations. Each
+sign-in form, and sign-in is not required to view the recommendations. Below
+the site name, a short description says what the site does and invites visitors
+to sign in to get recommendations based on the cards they already own. Each
 recommendation includes:
 
 - leader name and base
@@ -97,7 +104,22 @@ This page has a list of all the cards that are currently legal in premier (e.g.
 as of October 2026, only cards that were printed after sets 1-3 were published
 are legal). The cards are sorted by price, high to low. The user can specify how
 many copies of each card they have, up to 3 each. The list is paginated, 50 per
-page.
+page. There is a search bar that does fuzzy-find-style searching. Search results
+update as you type.
+
+To infer legality, first determine the earliest legal set. There are always 4 -
+6 legal sets at any time. When the first set of a calendar year is released
+(i.e. set 1, set 4, set 7, ...), then the 3 sets from the calendar year two
+years ago are "rotated out" and become illegal. e.g. when set 7 was released,
+sets 1-3 became illegal. All sets/promos printed after the earliest legal set
+are also legal. A card is legal if at least one of its printings is legal.
+
+We do not need any logic for banned cards.
+
+If cards don't have a price from tcgcsv, they are not shown.
+
+Each card links to its page on starwarsunlimited.com, opening in a new tab,
+e.g. https://starwarsunlimited.com/cards?cid=8487171598.
 
 ### For you
 

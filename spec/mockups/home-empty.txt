@@ -1,11 +1,13 @@
 Home page, before the first sync has produced recommendations
 
 +-----------------------------------+
-| BUDGETSWU                         |
+| BUDGETSWU                 Sign in |
 | Decklists for Star Wars:          |
 | Unlimited, recommended based on   |
 | price, performance, and           |
-| popularity.                       |
+| popularity. Sign in to get        |
+| recommendations based on the      |
+| cards you already own.            |
 |-----------------------------------|
 | +-------------------------------+ |
 | | Recommendations are being     | |

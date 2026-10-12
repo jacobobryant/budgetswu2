@@ -1,0 +1,27 @@
+Your cards, mobile (~375px wide), signed in
+
++-----------------------------------------+
+| BUDGETSWU                               |
+| Decks  [Your cards]  Sign out           |
+|-----------------------------------------|
+| Deck prices only count the cards you    |
+| don't already own.                      |
+|                                         |
+| [ (o) Search cards                    ] |
+|                                         |
+| [<- Previous]  Page 2 of 35  [Next ->]  |
+|                                         |
+| +-------------------------------------+ |
+| | Chimaera, A          0  1 [2] 3     | |
+| | Frightening Reality                 | |
+| | Unit · $38.32                       | |
+| |-------------------------------------| |
+| | Nightbrother,       [0] 1  2  3     | |
+| | Maul's Gauntlet                     | |
+| | Unit · $31.15                       | |
+| |-------------------------------------| |
+| | ...                                 | |
+| +-------------------------------------+ |
+|                                         |
+| [<- Previous]  Page 2 of 35  [Next ->]  |
++-----------------------------------------+

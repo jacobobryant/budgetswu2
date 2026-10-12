@@ -3,6 +3,7 @@
             [clojure.string :as str]
             [clojure.tools.logging :as log]
             [com.biffweb.fx :refer [defpipeline]]
+            [com.budgetswu.lib.ranking :as ranking]
             [com.budgetswu.lib.recommendations :as recommendations]
             [tick.core :as tick])
   (:import [java.net URLEncoder]))
@@ -32,7 +33,7 @@
     [:biff.fx/http
      {:url     url
       :method  :get
-      :headers (cond-> {"User-Agent" "Mozilla/5.0 Budgetswu"}
+      :headers (cond-> {"User-Agent" "Mozilla/5.0 BudgetSWU"}
                  (seq api-key)
                  (assoc "Authorization" (str "Bearer " api-key)))}])
 
@@ -101,6 +102,7 @@
                      {:meta/id         (:id meta)
                       :meta/start-date (:start meta)
                       :meta/end-date   (:end meta)
+                      :meta/set-id     (:set meta)
                       :meta/is-current true}))
     changed))
 
@@ -145,30 +147,47 @@
           (throw (ex-info "Invalid export cursor" {:entity entity})))
         (recur next-cursor)))))
 
+(defn card-id
+  "Returns the ID shared by all printings of a card: its name and subtitle, in
+  the same format decklists use."
+  [{:keys [name subtitle]}]
+  (if (seq subtitle)
+    (str name ", " subtitle)
+    name))
+
+(defn set-number
+  "Returns the set number encoded in the first two digits of a printing's
+  serial code, or nil for promo sets without one."
+  [serial-code]
+  (some->> serial-code (re-find #"^\d\d") parse-long))
+
 (defn- sync-cards [ctx]
   (sync-feed
-   ;; A new state ID forces a full resync so existing cards get aspects and
-   ;; types.
-   ctx "/cards" :cards "cards-v2" 500 {}
-   (fn [card]
-     (let [card-id (:uuid card)]
+   ;; A new state ID forces a full resync, e.g. after adding printing columns.
+   ctx "/cards" :cards "cards-v4" 500 {}
+   (fn [printing]
+     (let [id (card-id printing)]
        (execute-tx
         ctx
-        (into [(upsert :card :card/id
-                       {:card/id               card-id
-                        :card/collector-number (:collector_number card)
-                        :card/name             (:name card)
-                        :card/variant          (:variant_type card)
-                        :card/set-code         (:set_code card)
-                        :card/type             (:type card)})
+        (into [(upsert :card :card/id {:card/id id :card/type (:type printing)})
+               (upsert :card-set :card-set/id
+                       {:card-set/id     (:set_code printing)
+                        :card-set/number (set-number (:serial_code printing))})
+               (upsert :printing :printing/id
+                       {:printing/id               (:uuid printing)
+                        :printing/card-id          id
+                        :printing/card-set-id      (:set_code printing)
+                        :printing/collector-number (:collector_number printing)
+                        :printing/variant          (:variant_type printing)
+                        :printing/external-uid     (:external_uid printing)})
                {:delete-from :card-aspect
-                :where       [:= :card-aspect/card-id card-id]}]
+                :where       [:= :card-aspect/card-id id]}]
               (mapv (fn [aspect]
                       {:insert-into :card-aspect
-                       :values      [{:card-aspect/id      (str card-id ":" aspect)
-                                      :card-aspect/card-id card-id
+                       :values      [{:card-aspect/id      (str id ":" aspect)
+                                      :card-aspect/card-id id
                                       :card-aspect/aspect  aspect}]})
-                    (set (:aspects card)))))))))
+                    (set (:aspects printing)))))))))
 
 (defn- sync-tournaments [ctx meta]
   (sync-export
@@ -228,15 +247,14 @@
 
 (defn- card-types [ctx]
   (into {}
-        (map (juxt :card/collector-number :card/type))
+        (map (juxt :card/id :card/type))
         (:global/leaders-and-bases
          (graph-query ctx
-                      [{:global/leaders-and-bases
-                        [:card/collector-number :card/type]}]))))
+                      [{:global/leaders-and-bases [:card/id :card/type]}]))))
 
 (defn- card-of-type [types cards card-type]
   (first (filterv #(or (= card-type (:type %))
-                       (= card-type (get types (:collector_number %))))
+                       (= card-type (get types (:name %))))
                   cards)))
 
 (defn- sync-decklists [ctx valid-tournament-ids names]
@@ -264,21 +282,20 @@
                             :decklist/player-name
                             (get names (:player_uuid decklist))
 
-                            :decklist/leader-name (:name leader)
-                            :decklist/base-name   (:name base)
-                            :decklist/base-number (:collector_number base)
+                            :decklist/leader-id (:name leader)
+                            :decklist/base-id   (:name base)
 
                             :decklist/format "Premier"})
                    {:delete-from :deck-card
                     :where       [:= :deck-card/decklist-id deck-id]}]
-                  (mapv (fn [card]
-                          (let [collector (:collector_number card)]
-                            {:insert-into :deck-card
-                             :values      [{:deck-card/id               (str deck-id ":" collector)
-                                            :deck-card/decklist-id      deck-id
-                                            :deck-card/collector-number collector
-                                            :deck-card/quantity         (:count card)}]}))
-                        (filterv :collector_number cards))))))))
+                  (mapv (fn [{id :name collector :collector_number :as card}]
+                          {:insert-into :deck-card
+                           :values      [{:deck-card/id          (str deck-id ":" collector)
+                                          :deck-card/decklist-id deck-id
+                                          :deck-card/card-id     id
+                                          :deck-card/quantity    (:count card)}]})
+                        (filterv #(and (:name %) (:collector_number %))
+                                 cards))))))))
     @deck-ids))
 
 (defn- sync-standings [ctx valid-tournament-ids deck-ids]
@@ -347,10 +364,8 @@
                                  :where       [:= :tournament/id entity-id]}]))
     "standing" (execute ctx {:delete-from :standing
                              :where       [:= :standing/id entity-id]})
-    "card" (execute-tx ctx [{:delete-from :card-aspect
-                             :where       [:= :card-aspect/card-id entity-id]}
-                            {:delete-from :card
-                             :where       [:= :card/id entity-id]}])
+    "card" (execute ctx {:delete-from :printing
+                         :where       [:= :printing/id entity-id]})
     nil))
 
 (defn- sync-merges-and-deletions [ctx]
@@ -402,12 +417,11 @@
     (when (seq cents)
       (apply min cents))))
 
-(defn- cheaper-price [a b]
-  (if (< (:card-price/cents a) (:card-price/cents b)) a b))
-
-(defn- group-prices [ctx group]
-  (let [group-id   (:groupId group)
-        root       (str tcgcsv "/" group-id)
+(defn- group-prices
+  "Returns a map from collector number to the lowest non-foil price in cents
+  for a tcgcsv group."
+  [ctx group]
+  (let [root       (str tcgcsv "/" (:groupId group))
         products   (:results (fetch-json ctx (str root "/products") nil))
         prices     (:results (fetch-json ctx (str root "/prices") nil))
         by-product (group-by :productId prices)]
@@ -416,58 +430,59 @@
                     price     (nonfoil-price
                                (get by-product (:productId product)))]
                 (if (and collector price)
-                  (update acc collector
-                          (fn [old]
-                            (let [new-price
-                                  {:card-price/id    collector
-                                   :card-price/cents price
-
-                                   :card-price/product-id
-                                   (:productId product)}]
-                              (if old
-                                (cheaper-price old new-price)
-                                new-price))))
+                  (update acc collector #(min (or % price) price))
                   acc)))
-            {} products)))
+            {}
+            products)))
+
+(defn card-prices
+  "Returns a map from card ID to the lowest price of any of its printings.
+  `printings` are the standard printings used to map collector numbers to
+  cards."
+  [printings collector-prices]
+  (reduce (fn [acc {:printing/keys [card-id collector-number]}]
+            (if-some [price (get collector-prices collector-number)]
+              (update acc card-id #(min (or % price) price))
+              acc))
+          {}
+          printings))
 
 (defn- sync-prices [ctx]
-  (let [groups     (:results (fetch-json ctx (str tcgcsv "/groups") nil))
-        known-sets (into #{}
-                         (map :card/set-code)
-                         (:global/card-sets
-                          (graph-query ctx
-                                       [{:global/card-sets
-                                         [:card/set-code]}])))
-        prices     (reduce (fn [acc group]
-                             (if (contains? known-sets (:abbreviation group))
-                               (merge-with cheaper-price
-                                           acc (group-prices ctx group))
-                               acc))
-                           {} groups)]
+  (let [groups (:results (fetch-json ctx (str tcgcsv "/groups") nil))
+
+        {:global/keys [card-sets standard-printings]}
+        (graph-query ctx
+                     [{:global/card-sets [:card-set/id]}
+                      {:global/standard-printings
+                       [:printing/card-id :printing/collector-number]}])
+
+        known-sets (into #{} (map :card-set/id) card-sets)
+        groups     (filterv #(contains? known-sets (:abbreviation %)) groups)
+        ;; Some abbreviations are shared by several groups; keep the earliest.
+        published  (into {}
+                         (map (juxt :abbreviation #(subs (:publishedOn %) 0 10)))
+                         (sort-by :publishedOn #(compare %2 %1) groups))
+        prices     (card-prices standard-printings
+                                (apply merge-with min
+                                       (mapv #(group-prices ctx %) groups)))]
     (execute-tx ctx
-                (into [{:delete-from :card-price}]
-                      (mapv (fn [price]
-                              {:insert-into :card-price :values [price]})
-                            (vals prices))))))
+                (into
+                 (mapv (fn [[set-id date]]
+                         {:update :card-set
+                          :set    {:card-set/published-on date}
+                          :where  [:= :card-set/id set-id]})
+                       published)
+                 (cons {:update :card :set {:card/price-cents nil}}
+                       (mapv (fn [[id cents]]
+                               {:update :card
+                                :set    {:card/price-cents cents}
+                                :where  [:= :card/id id]})
+                             prices))))))
 
 (defn- update-recommendations [ctx]
   (let [front (:global/front
                (graph-query ctx
-                            [{:global/front
-                              [:recommendation/id
-                               [:? :recommendation/melee-id]
-                               [:? :recommendation/leader-name]
-                               [:? :recommendation/base-name]
-                               [:? :recommendation/player-name]
-                               :recommendation/tournament-name
-                               :recommendation/tournament-date
-                               :recommendation/player-count
-                               :recommendation/placement
-                               :recommendation/price-cents
-                               :recommendation/percentile
-                               :recommendation/archetype-frequency
-                               :recommendation/popularity-rank
-                               :recommendation/archetype-count]}]))]
+                            [{:global/front ranking/fields}]))]
     (execute-tx
      ctx
      (into [{:delete-from :recommendation}]

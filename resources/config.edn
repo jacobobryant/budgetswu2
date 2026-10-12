@@ -29,7 +29,7 @@
 
  :biff.tasks/css-input-path  "resources/tailwind.css"
  :biff.tasks/css-output-path "target/resources/public/css/main.css"
- :biff.tasks/deployment-name #or [#biff/env DEPLOYMENT_NAME "biff-demo"]
+ :biff.tasks/deployment-name #or [#biff/env DEPLOYMENT_NAME "budgetswu"]
 
  :biff.tasks/deploy-untracked-files
  [#ref [:biff.tasks/css-output-path]
@@ -44,5 +44,5 @@
 
  :mailersend/api-key   #biff/secret MAILERSEND_API_KEY
  :mailersend/from      #biff/env MAILERSEND_FROM
- :mailersend/from-name "My Application"
+ :mailersend/from-name "BudgetSWU"
  :mailersend/reply-to  #biff/env MAILERSEND_REPLY_TO}

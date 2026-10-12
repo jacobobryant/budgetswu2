@@ -1,6 +1,7 @@
 (ns com.budgetswu.app.landing.dev
   (:require [com.biffweb.fx :refer [defpipeline]]
             [com.biffweb.ring :refer [defpath]]
+            [com.budgetswu.lib.ranking :as ranking]
             [com.budgetswu.lib.recommendations :as recommendations]))
 
 (defpath dev-home-path "/_dev/home")
@@ -9,19 +10,7 @@
   (fn [ctx]
     (if (:com.budgetswu/dev-mode ctx)
       [:biff.graph.fx/query
-       [{:global/recommendations
-         [:recommendation/id
-          [:? :recommendation/melee-id]
-          [:? :recommendation/leader-name]
-          [:? :recommendation/base-name]
-          [:? :recommendation/player-name]
-          :recommendation/tournament-name
-          :recommendation/tournament-date
-          :recommendation/player-count
-          :recommendation/placement
-          :recommendation/price-cents
-          :recommendation/popularity-rank
-          :recommendation/archetype-count]}]]
+       [{:global/recommendations ranking/fields}]]
       {:biff.fx/return {:status 404 :body "Not found"}}))
 
   (fn [_ {:keys [global/recommendations]}]

@@ -1,9 +1,10 @@
 Home page, desktop (>=640px wide)
 
 +--------------------------------------------------------------------------+
-| BUDGETSWU                                                                |
+| BUDGETSWU                                                        Sign in |
 | Decklists for Star Wars: Unlimited, recommended based on price,          |
-| performance, and popularity.                                             |
+| performance, and popularity. Sign in to get recommendations based on     |
+| the cards you already own.                                               |
 |--------------------------------------------------------------------------|
 | +----------------------------------------------------------------------+ |
 | | 1. Boba Fett, Krayt's Claw Commander                                 | |

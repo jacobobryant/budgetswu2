@@ -35,3 +35,20 @@
            (collector {:abbreviation "SOR"}
                       {:extendedData [{:name  "Number"
                                        :value "019/252"}]})))))
+
+(deftest card-identity
+  (is (= "Luke Skywalker, Faithful Friend"
+         (sync/card-id {:name "Luke Skywalker" :subtitle "Faithful Friend"})))
+  (is (= "Battlefield Marine"
+         (sync/card-id {:name "Battlefield Marine" :subtitle nil})))
+  (is (= 9 (sync/set-number "09010002")))
+  (is (nil? (sync/set-number "p2601"))))
+
+(deftest card-prices
+  (is (= {"Luke" 100 "Han" 300}
+         (sync/card-prices
+          [{:printing/card-id "Luke" :printing/collector-number "SOR_005"}
+           {:printing/card-id "Luke" :printing/collector-number "JTL_010"}
+           {:printing/card-id "Han" :printing/collector-number "SOR_006"}
+           {:printing/card-id "Leia" :printing/collector-number "SOR_007"}]
+          {"SOR_005" 250 "JTL_010" 100 "SOR_006" 300}))))

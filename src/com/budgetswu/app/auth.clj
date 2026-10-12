@@ -33,9 +33,8 @@
   (biff.auth/module
    (merge
     {:biff.auth/app-path             (routes/app)
-     :biff.auth/app-name             "My Application"
-     ;; Uncomment to change the default color:
-     ;:biff.auth/primary-color        "#4F46E5"
+     :biff.auth/app-name             "BudgetSWU"
+     :biff.auth/primary-color        "#c2410c"
      :biff.auth/send-email           #'email/send-email
      :biff.auth/get-user-id          #'get-user-id
      :biff.auth/create-user          #'create-user

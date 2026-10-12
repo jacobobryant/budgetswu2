@@ -3,6 +3,8 @@
 
 (defpath home "/")
 (defpath app "/app")
+(defpath for-you "/app/for-you")
+(defpath cards "/app/cards")
 (defpath admin "/_biff/admin")
 (defpath signin "/signin")
 (defpath signout "/_biff/auth/signout")
