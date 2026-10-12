@@ -39,6 +39,9 @@
  :biff.tasks/main-ns    com.budgetswu
  :biff.tasks/nrepl-port #long #or [#biff/env NREPL_PORT "7888"]
 
+ :com.budgetswu/home-file "storage/home.html"
+ :com.budgetswu/dev-mode  #boolean #or [#biff/env DEV_MODE "false"]
+
  :mailersend/api-key   #biff/secret MAILERSEND_API_KEY
  :mailersend/from      #biff/env MAILERSEND_FROM
  :mailersend/from-name "My Application"

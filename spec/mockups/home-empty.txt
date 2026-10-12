@@ -1,0 +1,15 @@
+Home page, before the first sync has produced recommendations
+
++-----------------------------------+
+| BUDGETSWU                         |
+| Decklists for Star Wars:          |
+| Unlimited, recommended based on   |
+| price, performance, and           |
+| popularity.                       |
+|-----------------------------------|
+| +-------------------------------+ |
+| | Recommendations are being     | |
+| | prepared. Please check back   | |
+| | later.                        | |
+| +-------------------------------+ |
++-----------------------------------+

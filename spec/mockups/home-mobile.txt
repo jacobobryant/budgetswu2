@@ -1,0 +1,50 @@
+Home page, mobile (~375px wide)
+
++-----------------------------------------+
+| BUDGETSWU                               |
+| Decklists for Star Wars: Unlimited,     |
+| recommended based on price,             |
+| performance, and popularity.            |
+|-----------------------------------------|
+| +-------------------------------------+ |
+| | 1. Boba Fett, Krayt's Claw          | |
+| | Commander                           | |
+| | Contested Caverns                   | |
+| | Leopoldo Morales · Invictvs Rosario | |
+| | Store Showdown (HMW) · 2026-10-10   | |
+| |                                     | |
+| | +---------+ +---------+ +---------+ | |
+| | |PRICE    | |PLACED   | |POPULARIT| | |
+| | |$8.15    | |7 of 9   | |#19 of 46| | |
+| | +---------+ +---------+ +---------+ | |
+| |                                     | |
+| | +---------------------------------+ | |
+| | |    View decklist on melee.gg    | | |
+| | +---------------------------------+ | |
+| +-------------------------------------+ |
+|                                         |
+| +-------------------------------------+ |
+| | 2. Leia Organa, Someone Who Loves   | |
+| | You                                 | |
+| | Daimyo's Palace                     | |
+| | Gunn3d · Pax Aus Open 2026 ·        | |
+| | 2026-10-10                          | |
+| |                                     | |
+| | +---------+ +---------+ +---------+ | |
+| | |PRICE    | |PLACED   | |POPULARIT| | |
+| | |$34.23   | |17 of 47 | |#19 of 46| | |
+| | +---------+ +---------+ +---------+ | |
+| |                                     | |
+| | +---------------------------------+ | |
+| | |    View decklist on melee.gg    | | |
+| | +---------------------------------+ | |
+| +-------------------------------------+ |
+|                                         |
+| ...                                     |
++-----------------------------------------+
+
+Notes:
+- Stat boxes show three per row when they fit; on very narrow screens
+  (~320px) they wrap to two per row, with POPULARITY on the second row.
+- Stat values never wrap mid-value; the date never wraps mid-date.
+- The melee.gg link is a full-width button on mobile.

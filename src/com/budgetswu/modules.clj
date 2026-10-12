@@ -9,10 +9,14 @@
             [com.budgetswu.app.auth :as app.auth]
             [com.budgetswu.app.demo :as app.demo]
             [com.budgetswu.app.landing :as app.landing]
+            [com.budgetswu.app.landing.dev :as app.landing.dev]
+            [com.budgetswu.fx :as fx]
             [com.budgetswu.lib.ui :as lib.ui]
             [com.budgetswu.model.sqlite :as model.sqlite]
             [com.budgetswu.model.tab :as model.tab]
-            [com.budgetswu.model.user :as model.user]))
+            [com.budgetswu.model.user :as model.user]
+            [com.budgetswu.model.global :as model.global]
+            [com.budgetswu.work.sync :as work.sync]))
 
 (def modules
   [{:biff.core/init {:biff.ring/on-error #'lib.ui/on-error}}
@@ -21,12 +25,16 @@
    (biff.datastar/module)
    (biff.background/module)
    (biff.fx/module)
+   fx/module
    (biff.graph/module)
    model.user/module
    model.sqlite/module
    model.tab/module
+   model.global/module
+   work.sync/module
    app.admin/module
    app.landing/module
+   app.landing.dev/module
    app.auth/module
    app.demo/module])
 

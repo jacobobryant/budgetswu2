@@ -12,7 +12,59 @@
    :user/id           s/pkey
    :user/email        (s/text :required :unique)
    :user/joined-at    (s/inst :required :index)
-   :user/display-name (s/text)})
+   :user/display-name (s/text)
+
+   :card/id               (s/text {:primary-key true})
+   :card/collector-number (s/text :required :index)
+   :card/name             (s/text :required)
+   :card/variant          (s/text)
+   :card/set-code         (s/text)
+   :card/type             (s/text)
+
+   :card-aspect/id      (s/text {:primary-key true})
+   :card-aspect/card-id (s/text :required :index)
+   :card-aspect/aspect  (s/text :required)
+
+   :meta/id         (s/text {:primary-key true})
+   :meta/start-date (s/text :required)
+   :meta/end-date   (s/text)
+   :meta/is-current (s/bool :required)
+
+   :tournament/id           (s/text {:primary-key true})
+   :tournament/name         (s/text :required)
+   :tournament/held-at      (s/text :required)
+   :tournament/player-count (s/int)
+   :tournament/format       (s/text)
+
+   :decklist/id            (s/text {:primary-key true})
+   :decklist/melee-id      (s/text)
+   :decklist/tournament-id (s/text :required :index)
+   :decklist/player-name   (s/text)
+   :decklist/leader-name   (s/text)
+   :decklist/base-name     (s/text)
+   :decklist/base-number   (s/text)
+   :decklist/format        (s/text)
+
+   :deck-card/id               (s/text {:primary-key true})
+   :deck-card/decklist-id      (s/text :required :index)
+   :deck-card/collector-number (s/text :required)
+   :deck-card/quantity         (s/int :required)
+
+   :standing/id              (s/text {:primary-key true})
+   :standing/decklist-id     (s/text :index)
+   :standing/tournament-id   (s/text :required)
+   :standing/final-placement (s/int)
+
+   :card-price/id         (s/text {:primary-key true})
+   :card-price/cents      (s/int :required)
+   :card-price/product-id (s/int :required)
+
+   :sync-state/id           (s/text {:primary-key true})
+   :sync-state/watermark    (s/text)
+   :sync-state/attempted-at (s/text)
+
+   :recommendation/id   (s/text {:primary-key true})
+   :recommendation/rank (s/int :required)})
 
 ;; Strings added here will be appended to resources/schema.sql
 (def extra-init-sql [])

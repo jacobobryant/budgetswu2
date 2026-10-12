@@ -1,18 +1,19 @@
 (ns com.budgetswu.app.landing
-  (:require [com.budgetswu.lib.middleware :as mid]
-            [com.budgetswu.lib.ui :as ui]
+  (:require [com.biffweb.fx :refer [defpipeline]]
+            [com.budgetswu.lib.recommendations :as recommendations]
             [com.budgetswu.routes :as routes]))
 
-(defn home [_]
-  (ui/page
-   {}
-   [:main {:class ["grid min-h-full flex-1 grid-rows-[1fr_auto_2fr]"
-                   "justify-items-center"]}
-    [:a {:class ["row-start-2 rounded bg-blue-600 px-4 py-2 text-white"]
-         :href  (routes/signin)}
-     "Click here to sign in."]]))
+(defpipeline home
+  [:com.budgetswu.fx/read-home-html]
+
+  (fn [_ html]
+    (if html
+      {:status  200
+       :headers {"Content-Type" "text/html; charset=utf-8"}
+       :body    html}
+      (recommendations/home-response []))))
 
 (def module
   {:biff.ring/routes
-   ["" {:middleware [mid/wrap-redirect-signed-in]}
+   ["" {}
     [(routes/home) {:get home}]]})

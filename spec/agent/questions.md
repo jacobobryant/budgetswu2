@@ -1,30 +1,24 @@
-1. How is a decklist assigned to the current meta, including when an era
-   changes or a tournament spans eras? Recommend using its tournament date
-   and the meta era's published date range.
-   [External data](/spec/README.md#external-data?lines=13-20)
+1. The UI shows an "archetype popularity ranking," but the spec now only
+   defines frequency. How is it ranked and displayed? Recommend competition
+   ranking by frequency (1, 2, 2, 4; #1 most popular), shown as "Archetype
+   popularity: #12 of 40" where 40 is the number of distinct archetypes.
+   [UI](/spec/README.md#ui?lines=73-76)
 
-2. Which placement and field size should be used when standings are missing
-   or incomplete? Recommend using final placement and tournament player count,
-   and excluding decklists missing either value.
-   [Placement](/spec/README.md#placement?lines=43-46)
+2. Which decklists count toward popularity: all synced current-meta Premier
+   decklists, or only recommendation-eligible ones (priced, with placement)?
+   Recommend all synced current-meta Premier decklists.
+   [Recommendations](/spec/README.md#recommendations?lines=54-55)
 
-3. How should card printings map to tcgcsv products, and should leader/base
-   cards count toward price? Recommend pricing each main-deck printing by
-   quantity, including leader and base only if present in the main deck data.
-   [Pricing](/spec/README.md#pricing?lines=48-50)
+3. How are leader and base color identified? Recommend leader by full name
+   with subtitle (so reprints match), and base color by the base card's
+   aspects from swuapi card data, with aspectless bases as their own color.
+   swuapi's own decklist archetype_uuid would be ignored.
+   [Recommendations](/spec/README.md#recommendations?lines=51-54)
 
-4. What happens when a card has no non-foil price? Recommend excluding its
-   decklist from recommendations until all main-deck cards have prices.
-   [External data](/spec/README.md#external-data?lines=25-26)
+## Questions during implementation
 
-5. How should decklists with equal price and percentile be ordered?
-   Recommend retaining each and sorting them by decklist ID.
-   [Recommendations](/spec/README.md#recommendations?lines=37-41)
-
-6. Should a failed or partial sync update recommendations? Recommend keeping
-   the previous list, recording the attempt, and retrying after 12 hours.
-   [External data](/spec/README.md#external-data?lines=28-31)
-
-7. What should / serve before the first sync has written its HTML file?
-   Recommend serving an empty-state page until a successful sync writes it.
-   [UI](/spec/README.md#ui?lines=66-69)
+4. swuapi decklists sometimes type the leader/base entry as "Deck", and some
+   decklists have no cards at all. Should decklists without a known leader
+   count toward popularity? Implemented: leader/base are identified via card
+   types from the cards feed, and decklists with no leader are excluded.
+   [Recommendations](/spec/README.md#recommendations?lines=51-56)
