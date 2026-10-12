@@ -97,7 +97,18 @@ CREATE TABLE user (
   email TEXT NOT NULL,
   joined_at INT NOT NULL,
   display_name TEXT,
+  seen_recommendations BLOB,
+  unsubscribed_at INT,
   UNIQUE(email)
+) STRICT;
+
+CREATE TABLE notification (
+  id BLOB PRIMARY KEY NOT NULL,
+  created_at INT NOT NULL,
+  token BLOB NOT NULL,
+  user_id BLOB NOT NULL,
+  FOREIGN KEY(user_id) REFERENCES user(id),
+  UNIQUE(token)
 ) STRICT;
 
 CREATE TABLE owned_card (
@@ -112,6 +123,8 @@ CREATE TABLE owned_card (
 CREATE INDEX idx_card_aspect_card_id ON card_aspect(card_id);
 CREATE INDEX idx_deck_card_decklist_id ON deck_card(decklist_id);
 CREATE INDEX idx_decklist_tournament_id ON decklist(tournament_id);
+CREATE INDEX idx_notification_created_at ON notification(created_at);
+CREATE INDEX idx_notification_user_id ON notification(user_id);
 CREATE INDEX idx_printing_card_id ON printing(card_id);
 CREATE INDEX idx_printing_collector_number ON printing(collector_number);
 CREATE INDEX idx_standing_decklist_id ON standing(decklist_id);

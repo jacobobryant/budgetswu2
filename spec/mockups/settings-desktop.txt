@@ -1,0 +1,17 @@
+Settings, desktop (>=640px wide), signed in
+
++--------------------------------------------------------------------------+
+| BUDGETSWU                        Decks   Cards   [Settings]   Sign out   |
+|--------------------------------------------------------------------------|
+| +----------------------------------------------------------------------+ |
+| | Email notifications                                                  | |
+| | We email you@example.com when there are new deck     [Unsubscribe]   | |
+| | recommendations for you, at most once a day.                         | |
+| +----------------------------------------------------------------------+ |
++--------------------------------------------------------------------------+
+
+Notes:
+- After unsubscribing, the text reads "You're unsubscribed. We won't email
+  you@example.com about new deck recommendations." and the button becomes
+  [Resubscribe].
+- The button saves immediately; there is no separate Save button.

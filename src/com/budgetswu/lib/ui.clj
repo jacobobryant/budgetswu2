@@ -1,5 +1,6 @@
 (ns com.budgetswu.lib.ui
   (:require [clojure.java.io :as io]
+            [clojure.string :as str]
             [dev.onionpancakes.chassis.core :as chassis]
             [com.biffweb.datastar :as biff.datastar]
             [com.budgetswu.routes :as routes]
@@ -28,11 +29,12 @@
    :headers {"Content-Type" "text/html; charset=utf-8"}
    :body    (chassis/html body)})
 
-(defn- absolute-url
-  "Social media previews require absolute image URLs. Falls back to a relative
-  path when the domain isn't configured (e.g. in development)."
-  [{:keys [biff.tasks/domain]} path]
-  (str (when domain (str "https://" domain)) path))
+(defn absolute-url
+  "Returns `path` prefixed with the configured base URL, for links that leave
+  the site (emails, social media previews). Falls back to a relative path when
+  the base URL isn't configured (e.g. in development)."
+  [{:keys [com.budgetswu/base-url]} path]
+  (str (some-> base-url (str/replace #"/+$" "")) path))
 
 (defn page [opts & contents]
   (let [{:ui/keys [title description lang image icon init-datastar]}
@@ -81,10 +83,21 @@
                 ["font-semibold text-stone-300 hover:text-white"])}
    label])
 
-(defn- nav [current]
-  [:nav {:class ["flex items-center gap-4 text-sm sm:gap-6"]}
-   (nav-link (routes/for-you) "Decks" current)
-   (nav-link (routes/cards) "Your cards" current)
+(defn admin?
+  "True when the signed-in user is the one configured as
+  :biff.admin/admin-user-id (compared as strings, like Biff's dashboard does)."
+  [{:keys [session] :biff.admin/keys [admin-user-id]}]
+  (let [uid (str (:uid session))]
+    (and (not (str/blank? uid))
+         (= uid (str admin-user-id)))))
+
+(defn- nav [ctx current]
+  [:nav {:class ["flex flex-wrap items-center gap-x-4 gap-y-2 text-sm sm:gap-x-6"]}
+   (nav-link (routes/decks) "Decks" current)
+   (nav-link (routes/cards) "Cards" current)
+   (nav-link (routes/settings) "Settings" current)
+   (when (admin? ctx)
+     (nav-link (routes/admin) "Admin" current))
    [:form {:method "post" :action (routes/signout)}
     [:button {:type  "submit"
               :class ["font-semibold text-stone-300 hover:text-white"]}
@@ -93,7 +106,7 @@
 (defn shell
   "Wraps page content in the site layout. `current` is the path of the
   signed-in page being shown, or nil for public pages."
-  [{:keys [current description]} & content]
+  [ctx {:keys [current description]} & content]
   [:div {:class ["flex-1 bg-stone-900"]}
    [:main {:class ["mx-auto w-full max-w-5xl px-4 py-8 sm:px-5 sm:py-12"]}
     [:header {:class ["mb-6 border-b border-stone-700 pb-6 sm:mb-10 sm:pb-8"]}
@@ -103,7 +116,7 @@
                      "text-amber-400 sm:text-3xl"]}
         "BudgetSWU"]]
       (if current
-        (nav current)
+        (nav ctx current)
         [:a {:href (routes/app) :class link-class} "Sign in"])]
      (when description
        [:p {:class ["mt-3 max-w-2xl text-stone-300"]} description])]

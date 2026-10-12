@@ -1,0 +1,23 @@
+Unsubscribe page (/unsubscribe/<token>), mobile (~375px wide), signed out
+
++-----------------------------------------+
+| BUDGETSWU                       Sign in |
+|-----------------------------------------|
+| +-------------------------------------+ |
+| | Unsubscribe from BudgetSWU emails?  | |
+| | We'll stop emailing                 | |
+| | you@example.com about new deck      | |
+| | recommendations.                    | |
+| |                                     | |
+| | [Unsubscribe]                       | |
+| +-------------------------------------+ |
++-----------------------------------------+
+
+Notes:
+- Works without signing in; the token in the link identifies the user.
+- After clicking Unsubscribe (a POST), the box reads "You're unsubscribed /
+  We won't email you@example.com about new deck recommendations."
+- If the token is unknown or older than 30 days, the box reads "This link
+  has expired / Unsubscribe links work for 30 days. Sign in to manage your
+  email settings instead." (links to Settings).
+- Desktop uses the same content at full width.

@@ -1,7 +1,7 @@
 Decks, desktop (>=640px wide), signed in
 
 +--------------------------------------------------------------------------+
-| BUDGETSWU                           [Decks]   Your cards   Sign out      |
+| BUDGETSWU                        [Decks]   Cards   Settings   Sign out   |
 |--------------------------------------------------------------------------|
 | Prices below only count the cards you don't already own.                 |
 |                                                                          |

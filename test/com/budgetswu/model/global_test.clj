@@ -28,7 +28,11 @@
                [global/standard-printings :printing
                 :global/standard-printings
                 {:printing/card-id          "Lake Country"
-                 :printing/collector-number "HMW_023"}]]]
+                 :printing/collector-number "HMW_023"}]
+               [global/home-decklists :recommendation
+                :global/home-decklists {:recommendation/id "deck"}]
+               [global/notification-candidates :user
+                :global/notification-candidates {:user/id "user"}]]]
     (doseq [[resolver table output-key row] cases]
       (is (= [row]
              (get (resolve-with resolver {table [row]}) output-key))))))

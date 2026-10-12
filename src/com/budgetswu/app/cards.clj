@@ -8,9 +8,9 @@
             [com.budgetswu.routes :as routes]
             [com.budgetswu.schema :as schema]))
 
-(defpath set-quantity-path "/app/cards/quantity")
-(defpath set-search-path "/app/cards/search")
-(defpath set-page-path "/app/cards/page")
+(defpath set-quantity-path "/cards/quantity")
+(defpath set-search-path "/cards/search")
+(defpath set-page-path "/cards/page")
 
 ;;;; Page ======================================================================
 
@@ -163,6 +163,7 @@
       (ui/app-page
        request
        (ui/shell
+        request
         {:current (routes/cards)}
         (if (empty? owned)
           [:div {:class ["mb-6 rounded-lg bg-amber-200 p-4 text-stone-900 sm:p-6"]}

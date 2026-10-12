@@ -136,6 +136,41 @@
                                      (fn [_] []))))))
     (is (nil? (resolve-with request/card-search (signals nil) (fn [_] []))))))
 
+(deftest notification
+  (let [token   #uuid "00000000-0000-0000-0000-000000000009"
+        nid     #uuid "00000000-0000-0000-0000-000000000002"
+        queries (atom [])
+        handler (fn [statement]
+                  (swap! queries conj statement)
+                  [{:notification/id nid}])]
+    (is (= {:request/notification {:notification/id nid}}
+           (resolve-with request/notification {:path-params {:token token}} handler)))
+    (is (= [:= :notification/token token]
+           (get-in (first @queries) [:where 1])))
+    (is (= {} (resolve-with request/notification {:path-params {:token "x"}} handler)))
+    (is (nil? (resolve-with request/notification
+                            {:path-params {:token token}}
+                            (fn [_] []))))))
+
+(deftest email-notifications
+  (is (= {:request/email-notifications false}
+         (resolve-with request/email-notifications {:params {:enabled false}} (fn [_] []))))
+  (is (nil? (resolve-with request/email-notifications
+                          {:params {:enabled "false"}}
+                          (fn [_] [])))))
+
+(deftest selected-recommendations
+  (is (= {:request/selected-recommendations #{"" "a"}}
+         (resolve-with request/selected-recommendations
+                       {:biff.datastar/signals {:admin/selected ["" "a" ""]}}
+                       (fn [_] []))))
+  (is (nil? (resolve-with request/selected-recommendations
+                          {:biff.datastar/signals {:admin/selected "a"}}
+                          (fn [_] []))))
+  (is (nil? (resolve-with request/selected-recommendations
+                          {:biff.datastar/signals {:admin/selected [1]}}
+                          (fn [_] [])))))
+
 (deftest quantity
   (is (= {:request/quantity 2}
          (resolve-with request/quantity {:params {:quantity 2}} (fn [_] []))))

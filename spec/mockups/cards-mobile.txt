@@ -1,8 +1,8 @@
-Your cards, mobile (~375px wide), signed in
+Cards, mobile (~375px wide), signed in
 
 +-----------------------------------------+
 | BUDGETSWU                               |
-| Decks  [Your cards]  Sign out           |
+| Decks  [Cards]  Settings  Sign out      |
 |-----------------------------------------|
 | Deck prices only count the cards you    |
 | don't already own.                      |

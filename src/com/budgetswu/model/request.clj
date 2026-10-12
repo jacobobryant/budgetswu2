@@ -2,7 +2,8 @@
   (:require [clojure.set :as set]
             [clojure.string :as str]
             [com.biffweb.graph :refer [defresolver]]
-            [com.budgetswu.schema :as schema]))
+            [com.budgetswu.schema :as schema]
+            [tick.core :as tick]))
 
 (def page-size 50)
 
@@ -247,6 +248,41 @@
     (when (string? s)
       {:request/card-search (subs s 0 (min (count s) schema/max-search-length))})))
 
+(def unsubscribe-link-days 30)
+
+(defresolver notification
+  {:output [{:request/notification [:notification/id]}]}
+
+  (fn [{:keys [path-params] :biff.fx/keys [now]} _]
+    (let [token (:token path-params)]
+      (if (uuid? token)
+        [:biff.sqlite.fx/execute
+         {:select [:notification/id]
+          :from   :notification
+          :where  [:and
+                   [:= :notification/token token]
+                   [:>= :notification/created-at
+                    (tick/<< now (tick/new-duration unsubscribe-link-days :days))]]}]
+        {:biff.fx/return {}})))
+
+  (fn [_ rows]
+    (when-some [row (first rows)]
+      {:request/notification row})))
+
+(defresolver email-notifications
+  {:output [:request/email-notifications]}
+  [{:keys [params]} _]
+  (let [enabled (:enabled params)]
+    (when (boolean? enabled)
+      {:request/email-notifications enabled})))
+
+(defresolver selected-recommendations
+  {:output [:request/selected-recommendations]}
+  [{:keys [biff.datastar/signals]} _]
+  (let [ids (:admin/selected signals)]
+    (when (and (sequential? ids) (every? string? ids))
+      {:request/selected-recommendations (set ids)})))
+
 (defresolver quantity
   {:output [:request/quantity]}
   [{:keys [params]} _]
@@ -255,4 +291,11 @@
       {:request/quantity n})))
 
 (def module
-  {:biff.graph/resolvers [card-page card page card-search quantity]})
+  {:biff.graph/resolvers [card-page
+                          card
+                          page
+                          card-search
+                          notification
+                          email-notifications
+                          selected-recommendations
+                          quantity]})

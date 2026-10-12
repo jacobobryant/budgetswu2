@@ -1,5 +1,6 @@
 (ns com.budgetswu.fx
-  (:require [clojure.java.io :as io])
+  (:require [clojure.java.io :as io]
+            [com.budgetswu.lib.email :as email])
   (:import [java.nio.file AtomicMoveNotSupportedException
             Files StandardCopyOption]))
 
@@ -28,7 +29,11 @@
           (Files/deleteIfExists (.toPath temp)))))
     home-file))
 
+(defn send-email [ctx message]
+  (email/send-email ctx message))
+
 (def module
   {:biff.fx/handlers
    {:com.budgetswu.fx/read-home-html  read-home-html
-    :com.budgetswu.fx/write-home-html write-home-html}})
+    :com.budgetswu.fx/write-home-html write-home-html
+    :com.budgetswu.fx/send-email      send-email}})

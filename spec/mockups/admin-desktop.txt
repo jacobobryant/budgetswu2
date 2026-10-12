@@ -1,0 +1,34 @@
+Admin, desktop (>=640px wide), signed in as the admin
+
++--------------------------------------------------------------------------+
+| BUDGETSWU                 Decks   Cards   Settings   [Admin]   Sign out  |
+|--------------------------------------------------------------------------|
+| +----------------------------------------------------------------------+ |
+| | Biff dashboard                                                       | |
+| | Users, metrics, profiling, and alerts. Open the dashboard            | |
+| +----------------------------------------------------------------------+ |
+|                                                                          |
+| +----------------------------------------------------------------------+ |
+| | Test notification email                                              | |
+| | Sends you@example.com a notification email listing the selected      | |
+| | decks as new. Your seen decks aren't changed.                        | |
+| |                                                                      | |
+| | [ ] 1. Boba Fett, Krayt's Claw Commander / Contested Caverns         | |
+| |        Your cost $6.27 · 2026-10-10                                  | |
+| | [x] 2. Leia Organa, Someone Who Loves You / Daimyo's Palace          | |
+| |        Your cost $28.19 · 2026-10-10                                 | |
+| | [ ] 3. ...                                                           | |
+| |                                                                      | |
+| | [Send test email]                                                    | |
+| +----------------------------------------------------------------------+ |
++--------------------------------------------------------------------------+
+
+Notes:
+- The Admin link only appears for the user whose ID is
+  :biff.admin/admin-user-id. Other users get a 404 at /admin.
+- "Open the dashboard" links to /_biff/admin.
+- All checkboxes start unchecked. [Send test email] is disabled until at
+  least one is checked.
+- After sending, the checkboxes are cleared and "Sent to you@example.com."
+  appears next to the button.
+- On mobile, the nav wraps onto a second line when it doesn't fit.

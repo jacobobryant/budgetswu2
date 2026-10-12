@@ -93,12 +93,12 @@ request time from the recommended decklist primary keys stored by the sync job.
 
 ## Personalized recommendations
 
-If users create an account and sign in, they get access to 2 other pages: "For
-you" and "Your cards". If the user has not yet entered anything on "Your cards"
-(see below), then they're sent to that page after signing in and are shown an
-onboarding message. Otherwise, "For you" is the default page.
+If users create an account and sign in, they get access to additional pages:
+"Decks" and "Cards". If the user has not yet entered anything on "Cards" (see
+below), then they're sent to that page after signing in and are shown an
+onboarding message. Otherwise, "Decks" is the default page.
 
-### Your cards
+### Cards
 
 This page has a list of all the cards that are currently legal in premier (e.g.
 as of October 2026, only cards that were printed after sets 1-3 were published
@@ -121,9 +121,84 @@ If cards don't have a price from tcgcsv, they are not shown.
 Each card links to its page on starwarsunlimited.com, opening in a new tab,
 e.g. https://starwarsunlimited.com/cards?cid=8487171598.
 
-### For you
+### Decks
 
 This page is similar to the home page except that when computing the
 recommendations, the cost for each deck takes into account which cards the user
 already has. i.e. we consider the cost for the user to buy only the remaining
 cards which they don't already own. This page does not need to be cached.
+
+## Email notifications
+
+After the background data sync finishes its other work, it triggers an email
+notification for any users who have new recommendations they haven't seen on the
+"Decks" page yet. A user does not receive a notification more often than once
+every 24 hours.
+
+We record in the database what the last set of recommendations (a set of primary
+keys) were that the user either viewed on the "Decks" page or was notified about
+by email. Whenever the user views the "Decks" page, if the current
+recommendations are different from what's recorded, we update the database. We
+also update the database right before sending an email notification (to ensure
+"at most once" email notifications). When a user signs in for the first time, we
+initialize their "last seen recommendation set" with what's currently shown on
+the home page.
+
+An email is triggered if the latest recommendation set includes decks that are
+not in the previous recommendation set. We do not trigger a notification if the
+only change was that decks were removed.
+
+An edge case is that if a deck is removed from a user's recommendations and then
+is later added back, it will trigger an email notification. That's fine.
+
+The email should list only the new recommendations. The format and information
+shown should be similar to what's shown on the website. There should be a CTA
+for viewing the full list of recommendations on the website. The subject varies
+depending on how many new recommendations there are:
+
+- 1: "New deck: <decklist label>"
+- 2: "New decks: <decklist label> and 1 other"
+- N: "New decks: <decklist label> and <N-1> others"
+
+The decklist mentioned in the subject is whichever new deck comes higher in the
+list of recommendations on the website.
+
+There is a "Settings" page where users can unsubscribe. We have a
+`notifications` table that gets a new record for each user we send an email to.
+It includes a created-at time and an unsubscribe token. The token is used in an
+unsubscribe link that we include in the email. The token works for 30 days. When
+users click the link, they're taken to a page where they must click a button
+that triggers a POST request in order to unsubscribe.
+
+There is an env var/config.edn setting for specifying an address that will be
+included in the email, since bulk mail must include an address. There is also a
+`:com.budgetswu/base-url #env BASE_URL` setting used for links in the emails.
+
+Notification logic is executed on the same thread/job as the rest of the
+background data sync.
+
+## Admin
+
+If the signed-in user's ID is the configured `:biff.admin/admin-user-id`, the
+navbar includes an "Admin" link after "Settings".
+
+The admin page has:
+
+- A link to the default Biff dashboard (`/_biff/admin`).
+- A way to send a test notification email to the current user. It shows a
+  checkbox list of the user's current recommendations (in the same order as the
+  "Decks" page), all unselected by default, and a "Send test email" button. The
+  button is disabled until at least one recommendation is selected. The email
+  is the normal notification email, with the selected recommendations as the new
+  decks. Sending it doesn't change the user's "last seen recommendation set",
+  but it does record a notification (so the unsubscribe link works), which
+  counts toward the once-per-24-hours limit.
+
+## URLs
+
+- `/`
+- `/decks`
+- `/cards`
+- `/settings`
+- `/unsubscribe/<token>`
+- `/admin`

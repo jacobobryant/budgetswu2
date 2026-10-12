@@ -1,5 +1,6 @@
 (ns com.budgetswu.work.sync-test
   (:require [clojure.test :refer [deftest is testing]]
+            [com.budgetswu.lib.notification-test :refer [deck]]
             [com.budgetswu.work.sync :as sync]))
 
 (deftest database-pipeline-states
@@ -52,3 +53,46 @@
            {:printing/card-id "Han" :printing/collector-number "SOR_006"}
            {:printing/card-id "Leia" :printing/collector-number "SOR_007"}]
           {"SOR_005" 250 "JTL_010" 100 "SOR_006" 300}))))
+
+(def ctx
+  {:com.budgetswu/base-url        "https://example.com/"
+   :com.budgetswu/mailing-address "1 Main St"})
+
+(def token #uuid "00000000-0000-0000-0000-000000000009")
+
+(deftest notify-user-states
+  (let [[decide send-email] (sync/notify-user)
+
+        uid  #uuid "00000000-0000-0000-0000-000000000001"
+        nid  #uuid "00000000-0000-0000-0000-000000000002"
+        now  #inst "2026-10-12T00:00:00Z"
+        ctx  (assoc ctx
+                    :biff.fx/now now
+                    :biff.fx/random-uuid7-seq [nid]
+                    :biff.fx/random-uuid4-seq [token])
+        user {:user/id              uid
+              :user/email           "a@example.com"
+              :user/recommendations [(deck "a" "Luke") (deck "b" "Leia")]}
+        seen (fn [ids]
+               {:update :user
+                :set    {:user/seen-recommendations [:lift ids]}
+                :where  [:= :user/id uid]})]
+    (testing "users without a stored set start tracking without an email"
+      (is (= {:_ [:biff.sqlite.fx/execute (seen #{"a" "b"})]}
+             (decide ctx user))))
+    (testing "removed decks alone don't trigger an email"
+      (is (= {} (decide ctx (assoc user :user/seen-recommendations #{"a" "b" "c"})))))
+    (testing "new decks are recorded before the email is sent"
+      (let [result (decide ctx (assoc user :user/seen-recommendations #{"a"}))]
+        (is (= [:biff.sqlite.fx/execute-tx
+                [(seen #{"a" "b"})
+                 {:insert-into :notification
+                  :values      [{:notification/id         nid
+                                 :notification/user-id    uid
+                                 :notification/created-at now
+                                 :notification/token      token}]}]]
+               (:_ result)))
+        (is (= "New deck: Leia / Lake Country" (get-in result [:email :subject])))
+        (is (= [:com.budgetswu.fx/send-email (:email result)]
+               (send-email ctx result)))))
+    (is (nil? (send-email ctx {})))))

@@ -10,6 +10,12 @@
        "performance, and popularity. Sign in to get recommendations based on "
        "the cards you already own."))
 
+(defn melee-url [melee-id]
+  (str "https://melee.gg/Decklist/View/" melee-id))
+
+(defn day [tournament-date]
+  (first (str/split (or tournament-date "") #"T")))
+
 (defn- stat [label value & [note]]
   [:div {:class ["min-w-0 rounded-md bg-stone-100 px-2 py-2 sm:px-3"]}
    [:dt {:class ["text-xs font-medium uppercase tracking-wide text-stone-500"]}
@@ -36,7 +42,7 @@
     (str (or player-name "Unknown player") " · "
          (or tournament-name "Unknown tournament") " · ")
     [:span {:class ["whitespace-nowrap"]}
-     (first (str/split (or tournament-date "") #"T"))]]
+     (day tournament-date)]]
    [:dl {:class ["mt-4 grid gap-2 sm:gap-3"
                  "grid-cols-[repeat(auto-fit,minmax(5.5rem,1fr))]"]}
     (if personal
@@ -48,7 +54,7 @@
     (stat "Placed" (str placement " of " player-count))
     (stat "Popularity" (str "#" popularity-rank " of " archetype-count))]
    (when melee-id
-     [:a {:href   (str "https://melee.gg/Decklist/View/" melee-id)
+     [:a {:href   (melee-url melee-id)
           :target "_blank"
           :rel    "noopener noreferrer"
           :class  ["mt-4 block rounded-md border border-orange-300"
@@ -74,5 +80,5 @@
           :ui/title       "BudgetSWU — Star Wars: Unlimited decklists"
           :ui/description (str "Decklists for Star Wars: Unlimited, recommended "
                                "based on price, performance, and popularity."))
-   (ui/shell {:description description}
+   (ui/shell ctx {:description description}
              (recommendation-list recommendations {}))))

@@ -1,0 +1,39 @@
+Notification email (HTML version; a plain-text version has the same content)
+
+Subject: New decks: Boba Fett, Krayt's Claw Commander / Contested Caverns and 1 other
+
++------------------------------------------------------------+
+| BUDGETSWU                                                  |
+| There are 2 new deck recommendations for you on BudgetSWU: |
+|                                                            |
+| +--------------------------------------------------------+ |
+| | 1. Boba Fett, Krayt's Claw Commander                   | |
+| | Contested Caverns                                      | |
+| | Leopoldo Morales · Invictvs Rosario Store Showdown ... | |
+| | +---------------+ +---------------+ +---------------+  | |
+| | | YOUR COST     | | PLACED        | | POPULARITY    |  | |
+| | | $6.27         | | 7 of 9        | | #19 of 46     |  | |
+| | | Full $7.89    | |               | |               |  | |
+| | +---------------+ +---------------+ +---------------+  | |
+| | View decklist on melee.gg                              | |
+| +--------------------------------------------------------+ |
+|                                                            |
+| +--------------------------------------------------------+ |
+| | 4. Luke Skywalker, Hero of Yavin                       | |
+| | ...                                                    | |
+| +--------------------------------------------------------+ |
+|                                                            |
+| [See all your recommendations]                             |
+|                                                            |
+| You're getting this email because you have a BudgetSWU     |
+| account. We send at most one email a day.                  |
+| Unsubscribe                                                |
+| <mailing address>                                          |
++------------------------------------------------------------+
+
+Notes:
+- Only new decks are listed, numbered by their position on the user's
+  Decks page (so numbers can skip).
+- The subject names the highest-ranked new deck as "<leader> / <base>".
+- Links use the BASE_URL setting; "See all your recommendations" goes to
+  /decks.

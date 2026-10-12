@@ -1,0 +1,18 @@
+Settings, mobile (~375px wide), signed in
+
++-----------------------------------------+
+| BUDGETSWU                               |
+| Decks  Cards  [Settings]  Sign out      |
+|-----------------------------------------|
+| +-------------------------------------+ |
+| | Email notifications                 | |
+| | We email you@example.com when there | |
+| | are new deck recommendations for    | |
+| | you, at most once a day.            | |
+| |                                     | |
+| | [Unsubscribe]                       | |
+| +-------------------------------------+ |
++-----------------------------------------+
+
+Notes:
+- Same states as the desktop mockup.

@@ -5,15 +5,25 @@
 
 (def max-search-length 100)
 
+;; :user/seen-recommendations is the last set of recommended decklist IDs the
+;; user saw on the Decks page or was emailed about. Notifications are sent for
+;; decks not in it.
 (def columns
   {:tab-state/id          s/pkey
    :tab-state/card-search (s/text)
    :tab-state/card-page   (s/int)
 
-   :user/id           s/pkey
-   :user/email        (s/text :required :unique)
-   :user/joined-at    (s/inst :required :index)
-   :user/display-name (s/text)
+   :user/id                   s/pkey
+   :user/email                (s/text :required :unique)
+   :user/joined-at            (s/inst :required :index)
+   :user/display-name         (s/text)
+   :user/seen-recommendations (s/edn [:set :string])
+   :user/unsubscribed-at      (s/inst)
+
+   :notification/id         s/pkey
+   :notification/user-id    (s/ref :user/id :required :index)
+   :notification/created-at (s/inst :required :index)
+   :notification/token      (s/uuid :required :unique)
 
    :card/id          (s/text {:primary-key true})
    :card/type        (s/text)
@@ -80,7 +90,8 @@
 (def extra-init-sql [])
 
 ;; Add new columns here that you want users to be able to edit (e.g. settings).
-(def editable-user-fields [:user/display-name])
+(def editable-user-fields
+  [:user/display-name :user/seen-recommendations :user/unsubscribed-at])
 
 (defn only-fields-edited? [before after fields]
   (= (apply dissoc before fields)

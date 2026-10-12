@@ -3,6 +3,7 @@
             [clojure.string :as str]
             [clojure.tools.logging :as log]
             [com.biffweb.fx :refer [defpipeline]]
+            [com.budgetswu.lib.notification :as notification]
             [com.budgetswu.lib.ranking :as ranking]
             [com.budgetswu.lib.recommendations :as recommendations]
             [tick.core :as tick])
@@ -494,6 +495,56 @@
            front))
     front))
 
+;;;; Notifications =============================================================
+
+(defn- set-seen [user-id ids]
+  {:update :user
+   :set    {:user/seen-recommendations [:lift ids]}
+   :where  [:= :user/id user-id]})
+
+(defpipeline notify-user
+  (fn [{:biff.fx/keys [random-uuid4-seq] :as ctx}
+       {:user/keys [id email seen-recommendations recommendations]}]
+    (let [current   (into #{} (map :recommendation/id) recommendations)
+          new-decks (filterv #(not (contains? seen-recommendations
+                                              (:recommendation/id %)))
+                             recommendations)
+          token     (first random-uuid4-seq)]
+      (cond
+        ;; Users from before notifications existed: start tracking without
+        ;; emailing them about every current deck.
+        (nil? seen-recommendations)
+        {:_ [:biff.sqlite.fx/execute (set-seen id current)]}
+
+        (empty? new-decks)
+        {}
+
+        ;; Record the set before sending so a failure can't cause repeats.
+        :else
+        {:_     [:biff.sqlite.fx/execute-tx
+                 [(set-seen id current)
+                  (notification/insert ctx id token)]]
+         :email (notification/email ctx email recommendations new-decks token)})))
+
+  (fn [_ {:keys [email]}]
+    (when email
+      [:com.budgetswu.fx/send-email email])))
+
+(defn- notify-users [{:com.budgetswu/keys [base-url mailing-address] :as ctx}]
+  (if-not (and base-url mailing-address)
+    (log/warn "Skipping notification emails: BASE_URL or MAILING_ADDRESS is unset")
+    (doseq [user (:global/notification-candidates
+                  (graph-query ctx
+                               [{:global/notification-candidates
+                                 [:user/id
+                                  :user/email
+                                  [:? :user/seen-recommendations]
+                                  {:user/recommendations ranking/fields}]}]))]
+      (try
+        (notify-user ctx user)
+        (catch Exception e
+          (log/error e "Failed to notify user" (:user/id user)))))))
+
 (defn sync-now [ctx]
   (let [meta (current-meta ctx)]
     (reset-current-meta ctx meta)
@@ -509,6 +560,7 @@
           html  (:body (recommendations/home-response ctx front))]
       (write-home ctx html)
       (prune-old-tournaments ctx meta)
+      (notify-users ctx)
       (count front))))
 
 (defn- due? [last-attempt]

@@ -2,7 +2,7 @@ Decks, mobile (~375px wide), signed in
 
 +-----------------------------------------+
 | BUDGETSWU                               |
-| [Decks]  Your cards  Sign out           |
+| [Decks]  Cards  Settings  Sign out      |
 |-----------------------------------------|
 | Prices below only count the cards you   |
 | don't already own.                      |

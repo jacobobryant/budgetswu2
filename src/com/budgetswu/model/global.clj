@@ -1,6 +1,7 @@
 (ns com.budgetswu.model.global
   (:require [com.biffweb.graph :refer [defresolver]]
-            [com.budgetswu.lib.ranking :as ranking]))
+            [com.budgetswu.lib.ranking :as ranking]
+            [tick.core :as tick]))
 
 (defresolver sync-states
   {:output [{:global/sync-states
@@ -118,6 +119,38 @@
             (sort-by #(get rank-by-id (:recommendation/id %)))
             vec)})))
 
+(defresolver home-decklists
+  {:output [{:global/home-decklists [:recommendation/id]}]}
+
+  (fn [_ _]
+    [:biff.sqlite.fx/execute
+     {:select [:recommendation/id] :from :recommendation}])
+
+  (fn [_ rows]
+    {:global/home-decklists rows}))
+
+(def notification-interval (tick/new-duration 24 :hours))
+
+(defresolver notification-candidates
+  {:output [{:global/notification-candidates [:user/id]}]}
+
+  (fn [{:biff.fx/keys [now]} _]
+    [:biff.sqlite.fx/execute
+     {:select [:user/id]
+      :from   :user
+      :where  [:and
+               [:= :user/unsubscribed-at nil]
+               [:not [:exists
+                      {:select [1]
+                       :from   :notification
+                       :where  [:and
+                                [:= :notification/user-id :user/id]
+                                [:> :notification/created-at
+                                 (tick/<< now notification-interval)]]}]]]}])
+
+  (fn [_ rows]
+    {:global/notification-candidates rows}))
+
 (def module
   {:biff.graph/resolvers
    [sync-states
@@ -128,4 +161,6 @@
     card-sets
     standard-printings
     front
-    stored]})
+    stored
+    home-decklists
+    notification-candidates]})

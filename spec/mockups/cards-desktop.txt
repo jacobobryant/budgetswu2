@@ -1,7 +1,7 @@
-Your cards, desktop (>=640px wide), signed in
+Cards, desktop (>=640px wide), signed in
 
 +--------------------------------------------------------------------------+
-| BUDGETSWU                            Decks   [Your cards]   Sign out     |
+| BUDGETSWU                        Decks   [Cards]   Settings   Sign out   |
 |--------------------------------------------------------------------------|
 | +----------------------------------------------------------------------+ |
 | | Welcome to BudgetSWU                                                 | |

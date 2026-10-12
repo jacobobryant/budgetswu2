@@ -1,54 +1,59 @@
 # Add
 
-1. [x] Group printings into overall cards, and store each card's lowest
-   non-foil price across its printings.
-   [External data](/spec/README.md#external-data?lines=29-35)
+1. [x] Store each user's last recommendation set (decklist IDs) that they
+   viewed on "Decks" or were emailed about.
+   [Email notifications](/spec/README.md#email-notifications?lines=138-140)
 
-2. [x] Store how many copies (0-3) of each overall card each user owns.
-   [External data](/spec/README.md#external-data?lines=29-32)
-   [Your cards](/spec/README.md#your-cards?lines=103-105)
+2. [x] When a user signs in for the first time, initialize their stored set
+   with the recommendations currently shown on the home page.
+   [Email notifications](/spec/README.md#email-notifications?lines=143-145)
 
-3. [x] Compute Premier legality from set rotation: the earliest legal set
-   and everything printed after it; a card is legal if any printing is.
-   [Your cards](/spec/README.md#your-cards?lines=107-114)
+3. [x] When a user views "Decks" and their current recommendations differ
+   from the stored set, replace the stored set.
+   [Email notifications](/spec/README.md#email-notifications?lines=140-141)
 
-4. [x] Add a signed-in "Your cards" page listing legal, priced cards by price
-   (high to low), 50 per page, with an editable owned count up to 3.
-   [Your cards](/spec/README.md#your-cards?lines=101-116)
+4. [x] Add a `notifications` table with a record (user, created-at,
+   unsubscribe token) for each notification email sent.
+   [Email notifications](/spec/README.md#email-notifications?lines=166-168)
 
-5. [x] Add a signed-in "For you" page that computes recommendations at
-   request time, pricing each deck by only the cards the user doesn't own.
-   [For you](/spec/README.md#for-you?lines=120-123)
+5. [x] At the end of the sync job (same thread), find subscribed users
+   whose current recommendations include decks not in their stored set
+   (removals alone don't count) and who haven't been emailed in 24 hours.
+   [Email notifications](/spec/README.md#email-notifications?lines=133-136)
+   [Email notifications](/spec/README.md#email-notifications?lines=147-152)
+   [Email notifications](/spec/README.md#email-notifications?lines=177-178)
 
-6. [x] Add navigation between "For you" and "Your cards" for signed-in
-   users.
-   [Personalized recommendations](/spec/README.md?lines=94-95)
+6. [x] For each such user, store the new set and a notifications record,
+   then send an email listing only the new decks, formatted like the
+   website, with a CTA to "Decks", an unsubscribe link, and the mailing
+   address.
+   [Email notifications](/spec/README.md#email-notifications?lines=142-143)
+   [Email notifications](/spec/README.md#email-notifications?lines=154-156)
+   [Email notifications](/spec/README.md#email-notifications?lines=166-174)
 
-7. [x] After sign-in, send users with no cards entered to "Your cards" with
-   an onboarding message; otherwise default to "For you".
-   [Personalized recommendations](/spec/README.md?lines=95-97)
+7. [x] Use the subject "New deck: <label>" / "New decks: <label> and N-1
+   other(s)", naming the highest-ranked new deck.
+   [Email notifications](/spec/README.md#email-notifications?lines=156-164)
 
-8. [x] Link each card on "Your cards" to its starwarsunlimited.com page in a
-   new tab, using the swuapi external_uid of its newest Standard printing.
-   [Your cards](/spec/README.md#your-cards?lines=118-122)
+8. [x] Add a mailing address setting (env var / config.edn) included in
+   every notification email, and a base URL setting (BASE_URL) used for
+   links in the emails.
+   [Email notifications](/spec/README.md#email-notifications?lines=173-175)
 
-9. [x] Add a search bar to "Your cards" with fuzzy-find-style matching.
-   [Your cards](/spec/README.md#your-cards?lines=102-105)
+9. [x] Add an unsubscribe page at /unsubscribe/<token>: the token is valid
+   for 30 days, and a button POSTs to unsubscribe.
+   [Email notifications](/spec/README.md#email-notifications?lines=168-171)
+   [URLs](/spec/README.md#urls?lines=186)
 
-# Remove
-
-1. [x] Remove the template demo page at /app (display name and background
-   color settings), replacing it with the personalized pages.
-   [Personalized recommendations](/spec/README.md?lines=94-97)
+10. [x] Add a signed-in "Settings" page where users can unsubscribe from
+    notification emails.
+    [Email notifications](/spec/README.md#email-notifications?lines=166)
+    [URLs](/spec/README.md#urls?lines=185)
 
 # Change
 
-1. [x] Price decks by each card's overall price instead of the price of the
-   specific printing listed in the decklist.
-   [External data](/spec/README.md#external-data?lines=29-35)
-
-2. [x] Update the intro text on "Your cards" and "Decks" to match the
-   mockups. [Mockups](/spec/mockups/cards-desktop.txt?lines=27-28)
-
-3. [x] Add the sign-in invitation to the home page description.
-   [UI](/spec/README.md#ui?lines=73-79)
+1. [x] Move pages to the spec's URLs: /decks (was /app/for-you), /cards
+   (was /app/cards), /settings; rename the `app.for-you` namespace to
+   match "Decks".
+   [URLs](/spec/README.md#urls?lines=180-186)
+   [Personalized recommendations](/spec/README.md?lines=96-99)
