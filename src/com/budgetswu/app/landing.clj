@@ -1,5 +1,6 @@
 (ns com.budgetswu.app.landing
   (:require [com.biffweb.fx :refer [defpipeline]]
+            [com.budgetswu.lib.middleware :as mid]
             [com.budgetswu.lib.recommendations :as recommendations]
             [com.budgetswu.routes :as routes]))
 
@@ -16,4 +17,5 @@
 (def module
   {:biff.ring/routes
    ["" {}
-    [(routes/home) {:get home}]]})
+    [(routes/home) {:middleware [mid/wrap-redirect-signed-in]
+                    :get        home}]]})

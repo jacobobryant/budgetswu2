@@ -125,7 +125,8 @@
    [:main {:class ["mx-auto w-full max-w-5xl px-4 py-8 sm:px-5 sm:py-12"]}
     [:header {:class ["mb-6 border-b border-stone-700 pb-6 sm:mb-10 sm:pb-8"]}
      [:div {:class ["flex flex-wrap items-center justify-between gap-x-6 gap-y-3"]}
-      [:a {:href (routes/home)}
+      [:a {:href (cond-> (routes/home)
+                   (some? (get-in ctx [:session :uid])) (str "?redirect=false"))}
        [:h1 {:class ["text-2xl font-black uppercase tracking-[0.2em]"
                      "text-amber-400 sm:text-3xl"]}
         "BudgetSWU"]]

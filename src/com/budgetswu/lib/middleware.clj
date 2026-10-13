@@ -12,9 +12,13 @@
       {:status  303
        :headers {"location" (signin)}})))
 
-(defn wrap-redirect-signed-in [handler]
-  (fn [{:keys [session] :as ctx}]
-    (if (some? (:uid session))
+(defn wrap-redirect-signed-in
+  "Sends signed-in users to the app, unless the request has a
+  `redirect=false` query param."
+  [handler]
+  (fn [{:keys [session params] :as ctx}]
+    (if (and (some? (:uid session))
+             (not= "false" (:redirect params)))
       {:status  303
        :headers {"location" (routes/app)}}
       (handler ctx))))
