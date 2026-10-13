@@ -2,9 +2,9 @@
   (:require [clojure.test :refer [deftest is]]
             [com.budgetswu.model.global :as global]))
 
-(defn- resolve-with [resolver rows-by-table]
+(defn- resolve-with [resolver rows-by-table & {:keys [input] :or {input {}}}]
   ((:biff.graph/resolve-fn resolver)
-   {:biff.graph/input {}
+   {:biff.graph/input input
 
     :biff.fx/handlers
     {:biff.sqlite.fx/execute
@@ -26,31 +26,43 @@
                 :global/standard-printings
                 {:printing/card-id          "Lake Country"
                  :printing/collector-number "HMW_023"}]
-               [global/home-decklists :recommendation
-                :global/home-decklists {:recommendation/id "deck"}]
+               [global/ranked-recommendations :recommendation
+                :global/ranked-recommendations {:recommendation/id "deck"}]
+               [global/users :user
+                :global/users {:user/id    "user"
+                               :user/email "a@example.com"}]
                [global/notification-candidates :user
                 :global/notification-candidates {:user/id "user"}]]]
     (doseq [[resolver table output-key row] cases]
       (is (= [row]
              (get (resolve-with resolver {table [row]}) output-key))))))
 
-(deftest recommendation-resolvers
-  (let [deck {:decklist/id             "deck"
-              :decklist/leader-id      "Luke"
-              :decklist/placement      1
-              :tournament/player-count 20}
-        card {:deck-card/decklist-id "deck"
-              :deck-card/card-id     "x"
-              :deck-card/quantity    50
-              :card/price-cents      100}
-        rows {:decklist       [deck]
-              :deck-card      [card]
-              :recommendation [{:recommendation/id   "deck"
-                                :recommendation/rank 0}]}]
-    (is (= ["deck"]
-           (mapv :recommendation/id
-                 (:global/front (resolve-with global/front rows)))))
-    (is (= ["deck"]
-           (mapv :recommendation/id
-                 (:global/recommendations
-                  (resolve-with global/stored rows)))))))
+(deftest current-recommendations
+  (is (= {:global/current-recommendations [{:recommendation/id "deck"}]}
+         (resolve-with global/current-recommendations {:decklist [{:decklist/id "deck"}]}))))
+
+(deftest front
+  (let [candidate (fn [id eligible price]
+                    {:recommendation/id                  id
+                     :recommendation/eligible            eligible
+                     :recommendation/price-cents         price
+                     :recommendation/percentile          1/2
+                     :recommendation/archetype-frequency 1})]
+    (is (= {:global/front [{:recommendation/id "b"}]}
+           (resolve-with global/front
+                         {}
+                         :input {:global/current-recommendations
+                                 [(candidate "a" false 100)
+                                  (candidate "b" true 200)
+                                  (candidate "c" true 300)
+                                  {:recommendation/id "d"}]})))))
+
+(deftest stored-recommendations
+  (is (= {:global/recommendations [{:recommendation/id "b"} {:recommendation/id "a"}]}
+         (resolve-with global/stored-recommendations
+                       {}
+                       :input {:global/ranked-recommendations
+                               [{:recommendation/id "b" :recommendation/eligible true}
+                                {:recommendation/id "c" :recommendation/eligible false}
+                                {:recommendation/id "gone"}
+                                {:recommendation/id "a" :recommendation/eligible true}]}))))

@@ -159,17 +159,22 @@
                           {:params {:enabled "false"}}
                           (fn [_] [])))))
 
-(deftest selected-recommendations
-  (is (= {:request/selected-recommendations #{"" "a"}}
-         (resolve-with request/selected-recommendations
-                       {:biff.datastar/signals {:admin/selected ["" "a" ""]}}
-                       (fn [_] []))))
-  (is (nil? (resolve-with request/selected-recommendations
-                          {:biff.datastar/signals {:admin/selected "a"}}
-                          (fn [_] []))))
-  (is (nil? (resolve-with request/selected-recommendations
-                          {:biff.datastar/signals {:admin/selected [1]}}
-                          (fn [_] [])))))
+(deftest tab-state
+  (is (= {:request/tab-state {:tab-state/id tab-id}}
+         (resolve-with request/tab-state {:biff.datastar/tab-id tab-id} (fn [_] []))))
+  (is (nil? (resolve-with request/tab-state {} (fn [_] [])))))
+
+(deftest decklist
+  (is (= {:request/decklist {:decklist/id "deck"}}
+         (resolve-with request/decklist {:params {:decklist-id "deck"}}
+                       (fn [_] [{:decklist/id "deck"}]))))
+  (is (nil? (resolve-with request/decklist {:params {:decklist-id "gone"}} (fn [_] []))))
+  (is (= {} (resolve-with request/decklist {:params {}} (fn [_] [])))))
+
+(deftest selected
+  (is (= {:request/selected false}
+         (resolve-with request/selected {:params {:selected false}} (fn [_] []))))
+  (is (nil? (resolve-with request/selected {:params {:selected "true"}} (fn [_] [])))))
 
 (deftest quantity
   (is (= {:request/quantity 2}

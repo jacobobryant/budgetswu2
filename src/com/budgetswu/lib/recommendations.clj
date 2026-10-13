@@ -1,6 +1,37 @@
 (ns com.budgetswu.lib.recommendations
-  (:require [clojure.string :as str]
-            [com.budgetswu.lib.ui :as ui]))
+  (:require [com.budgetswu.lib.ui :as ui]
+            [tick.core :as tick]))
+
+(def fields
+  "The recommendation attributes needed to show a recommendation."
+  [:recommendation/id
+   [:? :recommendation/melee-id]
+   [:? :recommendation/leader-name]
+   [:? :recommendation/base-name]
+   [:? :recommendation/player-name]
+   :recommendation/tournament-name
+   :recommendation/tournament-date
+   :recommendation/player-count
+   :recommendation/placement
+   :recommendation/price-cents
+   :recommendation/full-price-cents
+   :recommendation/popularity-rank
+   :recommendation/archetype-count])
+
+(def candidate-fields
+  "The recommendation attributes needed to choose recommendations."
+  [:recommendation/id
+   [:? :recommendation/eligible]
+   [:? :recommendation/price-cents]
+   [:? :recommendation/percentile]
+   [:? :recommendation/archetype-frequency]])
+
+(def objectives
+  "Recommendations are the eligible decks that no other deck beats on price,
+  placement, and archetype rarity."
+  {:minimize  [:recommendation/price-cents :recommendation/archetype-frequency]
+   :maximize  [:recommendation/percentile]
+   :tie-break :recommendation/id})
 
 (defn money [cents]
   (format "$%.2f" (/ cents 100.0)))
@@ -13,8 +44,10 @@
 (defn melee-url [melee-id]
   (str "https://melee.gg/Decklist/View/" melee-id))
 
-(defn day [tournament-date]
-  (first (str/split (or tournament-date "") #"T")))
+(defn day
+  "Returns the UTC date of a tournament's start time."
+  [tournament-date]
+  (some-> tournament-date tick/instant (tick/in "UTC") tick/date str))
 
 (defn- stat [label value & [note]]
   [:div {:class ["min-w-0 rounded-md bg-stone-100 px-2 py-2 sm:px-3"]}

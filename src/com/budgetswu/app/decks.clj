@@ -1,7 +1,6 @@
 (ns com.budgetswu.app.decks
   (:require [com.biffweb.fx :refer [defpipeline]]
             [com.budgetswu.lib.middleware :as mid]
-            [com.budgetswu.lib.ranking :as ranking]
             [com.budgetswu.lib.recommendations :as recommendations]
             [com.budgetswu.lib.ui :as ui]
             [com.budgetswu.routes :as routes]))
@@ -20,7 +19,7 @@
   [:biff.graph.fx/query
    [{:session/user [:user/id
                     [:? :user/seen-recommendations]
-                    {:user/recommendations ranking/fields}
+                    {:user/recommendations recommendations/fields}
                     {:user/owned-cards [:owned-card/id]}]}]]
 
   (fn [request {:keys [session/user]}]

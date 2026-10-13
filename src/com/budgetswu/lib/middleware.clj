@@ -1,13 +1,16 @@
 (ns com.budgetswu.lib.middleware
-  (:require [com.budgetswu.lib.ui :as ui]
+  (:require [com.biffweb.ring :refer [defpath]]
+            [com.budgetswu.lib.ui :as ui]
             [com.budgetswu.routes :as routes]))
+
+(defpath signin "/signin")
 
 (defn wrap-signed-in [handler]
   (fn [{:keys [session] :as ctx}]
     (if (some? (:uid session))
       (handler ctx)
       {:status  303
-       :headers {"location" (routes/signin)}})))
+       :headers {"location" (signin)}})))
 
 (defn wrap-redirect-signed-in [handler]
   (fn [{:keys [session] :as ctx}]

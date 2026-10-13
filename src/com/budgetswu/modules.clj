@@ -15,6 +15,8 @@
             [com.budgetswu.app.unsubscribe :as app.unsubscribe]
             [com.budgetswu.fx :as fx]
             [com.budgetswu.lib.ui :as lib.ui]
+            [com.budgetswu.model.recommendation :as model.recommendation]
+            [com.budgetswu.model.session :as model.session]
             [com.budgetswu.model.sqlite :as model.sqlite]
             [com.budgetswu.model.user :as model.user]
             [com.budgetswu.model.global :as model.global]
@@ -30,7 +32,9 @@
    (biff.fx/module)
    fx/module
    (biff.graph/module)
+   model.session/module
    model.user/module
+   model.recommendation/module
    model.sqlite/module
    model.global/module
    model.request/module
@@ -40,6 +44,7 @@
    app.landing/module
    app.landing.dev/module
    app.auth/module
+   app.auth/signout-module
    app.decks/module
    app.cards/module
    app.settings/module

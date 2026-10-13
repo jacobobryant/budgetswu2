@@ -1,6 +1,6 @@
 (ns com.budgetswu.fx
   (:require [clojure.java.io :as io]
-            [com.budgetswu.lib.email :as email]
+            [clojure.tools.logging :as log]
             [hato.client :as hato])
   (:import [java.nio.file AtomicMoveNotSupportedException
             Files StandardCopyOption]))
@@ -30,8 +30,8 @@
           (Files/deleteIfExists (.toPath temp)))))
     home-file))
 
-(defn send-email [ctx message]
-  (email/send-email ctx message))
+(defn log-message [_ level message]
+  (log/log level message))
 
 (defn melee-sign-in
   "Posts melee.gg's sign-in form. The credentials are read from ctx rather than
@@ -54,5 +54,5 @@
   {:biff.fx/handlers
    {:com.budgetswu.fx/read-home-html  read-home-html
     :com.budgetswu.fx/write-home-html write-home-html
-    :com.budgetswu.fx/send-email      send-email
+    :com.budgetswu.fx/log             log-message
     :com.budgetswu.fx/melee-sign-in   melee-sign-in}})

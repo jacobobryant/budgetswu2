@@ -276,12 +276,31 @@
     (when (boolean? enabled)
       {:request/email-notifications enabled})))
 
-(defresolver selected-recommendations
-  {:output [:request/selected-recommendations]}
-  [{:keys [biff.datastar/signals]} _]
-  (let [ids (:admin/selected signals)]
-    (when (and (sequential? ids) (every? string? ids))
-      {:request/selected-recommendations (set ids)})))
+(defresolver tab-state
+  {:output [{:request/tab-state [:tab-state/id]}]}
+  [{:keys [biff.datastar/tab-id]} _]
+  (when tab-id
+    {:request/tab-state {:tab-state/id tab-id}}))
+
+(defresolver decklist
+  {:output [{:request/decklist [:decklist/id]}]}
+
+  (fn [{:keys [params]} _]
+    (if-some [decklist-id (:decklist-id params)]
+      [:biff.sqlite.fx/execute
+       {:select [:decklist/id] :from :decklist :where [:= :decklist/id decklist-id]}]
+      {:biff.fx/return {}}))
+
+  (fn [_ rows]
+    (when-some [row (first rows)]
+      {:request/decklist row})))
+
+(defresolver selected
+  {:output [:request/selected]}
+  [{:keys [params]} _]
+  (let [selected (:selected params)]
+    (when (boolean? selected)
+      {:request/selected selected})))
 
 (defresolver quantity
   {:output [:request/quantity]}
@@ -297,5 +316,7 @@
                           card-search
                           notification
                           email-notifications
-                          selected-recommendations
+                          tab-state
+                          decklist
+                          selected
                           quantity]})

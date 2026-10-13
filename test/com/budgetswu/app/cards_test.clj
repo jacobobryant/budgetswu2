@@ -26,10 +26,11 @@
 
 (deftest set-search
   (let [[state] (cards/set-search)
-        ctx     {:biff.datastar/tab-id tab-id}]
+        ctx     {:session {:uid uid} :biff.datastar/tab-id tab-id}]
     (is (= {:_      [:biff.sqlite.fx/authorized-write
                      {:insert-into   :tab-state
                       :values        [{:tab-state/id          tab-id
+                                       :tab-state/user-id     uid
                                        :tab-state/card-search "vader"
                                        :tab-state/card-page   1}]
                       :on-conflict   [:tab-state/id]
@@ -41,10 +42,11 @@
 
 (deftest set-page
   (let [[state] (cards/set-page)
-        ctx     {:biff.datastar/tab-id tab-id}]
+        ctx     {:session {:uid uid} :biff.datastar/tab-id tab-id}]
     (is (= {:_      [:biff.sqlite.fx/authorized-write
                      {:insert-into   :tab-state
                       :values        [{:tab-state/id        tab-id
+                                       :tab-state/user-id   uid
                                        :tab-state/card-page 3}]
                       :on-conflict   [:tab-state/id]
                       :do-update-set [:tab-state/card-page]}]

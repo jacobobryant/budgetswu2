@@ -98,10 +98,12 @@
    (nav-link (routes/settings) "Settings" current)
    (when (admin? ctx)
      (nav-link (routes/admin) "Admin" current))
-   [:form {:method "post" :action (routes/signout)}
-    [:button {:type  "submit"
-              :class ["font-semibold text-stone-300 hover:text-white"]}
-     "Sign out"]]])
+   [:button {:type          "button"
+             :data-action   (routes/signout)
+             :data-on:click (str "@post(el.dataset.action).then(() => "
+                                 "window.location.href = '" (routes/home) "')")
+             :class         ["font-semibold text-stone-300 hover:text-white"]}
+    "Sign out"]])
 
 (defn shell
   "Wraps page content in the site layout. `current` is the path of the

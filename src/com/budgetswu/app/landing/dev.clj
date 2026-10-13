@@ -1,7 +1,6 @@
 (ns com.budgetswu.app.landing.dev
   (:require [com.biffweb.fx :refer [defpipeline]]
             [com.biffweb.ring :refer [defpath]]
-            [com.budgetswu.lib.ranking :as ranking]
             [com.budgetswu.lib.recommendations :as recommendations]))
 
 (defpath dev-home-path "/_dev/home")
@@ -10,7 +9,7 @@
   (fn [ctx]
     (if (:com.budgetswu/dev-mode ctx)
       [:biff.graph.fx/query
-       [{:global/recommendations ranking/fields}]]
+       [{:global/recommendations recommendations/fields}]]
       {:biff.fx/return {:status 404 :body "Not found"}}))
 
   (fn [ctx {:keys [global/recommendations]}]

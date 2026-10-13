@@ -9,9 +9,12 @@
 ;; user saw on the Decks page or was emailed about. Notifications are sent for
 ;; decks not in it.
 (def columns
-  {:tab-state/id          s/pkey
-   :tab-state/card-search (s/text)
-   :tab-state/card-page   (s/int)
+  {:tab-state/id             s/pkey
+   :tab-state/user-id        (s/uuid :index)
+   :tab-state/card-search    (s/text)
+   :tab-state/card-page      (s/int)
+   :tab-state/admin-selected (s/edn [:set :string])
+   :tab-state/admin-status   (s/text)
 
    :user/id                   s/pkey
    :user/email                (s/text :required :unique)
@@ -95,22 +98,31 @@
   (= (apply dissoc before fields)
      (apply dissoc after fields)))
 
-(defn authorize-entry [{{:keys [uid]} :session
-                        :keys         [biff.datastar/tab-id]}
+(defn- owned-by? [uid owner-key records]
+  (and (some? uid)
+       (every? #(= uid (owner-key %)) (filterv some? records))))
+
+(defn authorize-entry [{{:keys [uid]} :session}
                        {:keys [table op before after]}]
   (case table
     :user
-    (and (every? #{uid} (keep :user/id [before after]))
+    (and (owned-by? uid :user/id [before after])
          (case op
            :create false
            :update (only-fields-edited? before after editable-user-fields)
            :delete true))
 
     :tab-state
-    (every? #{tab-id} (keep :tab-state/id [before after]))
+    (owned-by? uid :tab-state/user-id [before after])
+
+    ;; Notifications let their recipient unsubscribe, so users may only create
+    ;; ones addressed to themselves.
+    :notification
+    (and (= op :create)
+         (owned-by? uid :notification/user-id [after]))
 
     :owned-card
-    (and (every? #{uid} (keep :owned-card/user-id [before after]))
+    (and (owned-by? uid :owned-card/user-id [before after])
          (or (nil? after) (<= 0 (:owned-card/quantity after) max-owned-quantity)))
 
     false))

@@ -1,43 +1,47 @@
 (ns com.budgetswu.lib.email
-  (:require [clojure.tools.logging :as log]
-            [hato.client :as hato]))
+  (:require [clojure.string :as str]
+            [com.biffweb.fx :refer [defpipeline]]))
 
-(defn- send-mailersend
+(defn- mailersend-request
   [{:mailersend/keys [api-key from from-name reply-to]}
    {:keys [to subject html text]}]
-  (let [response (hato/post
-                  "https://api.mailersend.com/v1/email"
-                  {:headers          {"Authorization"
-                                      (str "Bearer " (force api-key))}
-                   :content-type     :json
-                   :throw-exceptions false
-                   :as               :json
-                   :form-params      {:from     {:email from
-                                                 :name  from-name}
-                                      :reply_to {:email reply-to
-                                                 :name  from-name}
-                                      :to       [{:email to}]
-                                      :subject  subject
-                                      :html     html
-                                      :text     text}})]
-    (when (<= 400 (:status response))
-      (log/warn "MailerSend error:" (:body response)))
-    (< (:status response) 400)))
+  {:url              "https://api.mailersend.com/v1/email"
+   :method           :post
+   :headers          {"Authorization" (str "Bearer " (force api-key))}
+   :content-type     :json
+   :throw-exceptions false
+   :as               :json
+   :form-params      {:from     {:email from :name from-name}
+                      :reply_to {:email reply-to :name from-name}
+                      :to       [{:email to}]
+                      :subject  subject
+                      :html     html
+                      :text     text}})
 
-(defn send-email [{:keys [mailersend/api-key] :as ctx}
-                  {:keys [to subject text html]}]
+(defn- console-message [{:keys [to subject text]}]
+  (str/join "\n" ["" "---" (str "To:      " to) (str "Subject: " subject) "" text "---" ""]))
+
+(defn send-fx
+  "Returns an effect descriptor that sends `message`, or that prints it when
+  MailerSend isn't configured (e.g. in development)."
+  [{:keys [mailersend/api-key] :as ctx} message]
   (if api-key
-    (send-mailersend ctx {:to      to
-                          :subject subject
-                          :html    html
-                          :text    text})
-    (do
-      (println)
-      (println "---")
-      (println "To:     " to)
-      (println "Subject:" subject)
-      (println)
-      (println text)
-      (println "---")
-      (println)
+    [:biff.fx/http (mailersend-request ctx message)]
+    [:com.budgetswu.fx/log :info (console-message message)]))
+
+(defn failure
+  "Returns the MailerSend error body for the result of `send-fx`'s effect, or
+  nil if the email was sent."
+  [{:keys [status body]}]
+  (when (and status (<= 400 status))
+    (or body {:status status})))
+
+(defpipeline send-email
+  (fn [ctx message]
+    {:response (send-fx ctx message)})
+
+  (fn [_ {:keys [response]}]
+    (if-some [error (failure response)]
+      {:_              [:com.budgetswu.fx/log :warn (str "MailerSend error: " (pr-str error))]
+       :biff.fx/return false}
       true)))

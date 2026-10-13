@@ -1,6 +1,7 @@
 (ns com.budgetswu.model.global
   (:require [com.biffweb.graph :refer [defresolver]]
-            [com.budgetswu.lib.ranking :as ranking]
+            [com.budgetswu.lib.pareto :as pareto]
+            [com.budgetswu.lib.recommendations :as recommendations]
             [tick.core :as tick]))
 
 (defresolver sync-states
@@ -65,48 +66,69 @@
   (fn [_ rows]
     {:global/standard-printings rows}))
 
-(defresolver front
-  {:output [{:global/front ranking/fields}]}
-
-  (fn [_ _]
-    {:decks      [:biff.sqlite.fx/execute ranking/current-deck-query]
-     :cards      [:biff.sqlite.fx/execute ranking/card-query]
-     :archetypes [:biff.sqlite.fx/execute ranking/current-archetype-query]})
-
-  (fn [_ {:keys [decks cards archetypes]}]
-    {:global/front (ranking/pareto-front (ranking/candidates decks cards archetypes {}))}))
-
-(defresolver stored
-  {:output [{:global/recommendations ranking/fields}]}
-
-  (fn [_ _]
-    {:decks      [:biff.sqlite.fx/execute ranking/deck-query]
-     :cards      [:biff.sqlite.fx/execute ranking/card-query]
-     :archetypes [:biff.sqlite.fx/execute ranking/current-archetype-query]
-     :ranks      [:biff.sqlite.fx/execute
-                  {:select [:recommendation/id :recommendation/rank]
-                   :from   :recommendation}]})
-
-  (fn [_ {:keys [decks cards archetypes ranks]}]
-    (let [rank-by-id (into {}
-                           (map (juxt :recommendation/id
-                                      :recommendation/rank))
-                           ranks)]
-      {:global/recommendations
-       (->> (ranking/candidates decks cards archetypes {})
-            (filterv #(contains? rank-by-id (:recommendation/id %)))
-            (sort-by #(get rank-by-id (:recommendation/id %)))
-            vec)})))
-
-(defresolver home-decklists
-  {:output [{:global/home-decklists [:recommendation/id]}]}
+(defresolver current-recommendations
+  {:output [{:global/current-recommendations [:recommendation/id]}]}
 
   (fn [_ _]
     [:biff.sqlite.fx/execute
-     {:select [:recommendation/id] :from :recommendation}])
+     {:select [:decklist/id]
+      :from   :decklist
+      :join   [:tournament [:= :decklist/tournament-id :tournament/id]
+               :meta [:= :meta/is-current true]]
+      :where  [:and
+               [:>= :tournament/held-at :meta/start-date]
+               [:or
+                [:= :meta/end-date nil]
+                [:< :tournament/held-at :meta/end-date]]]}])
 
   (fn [_ rows]
-    {:global/home-decklists rows}))
+    {:global/current-recommendations
+     (mapv (fn [row] {:recommendation/id (:decklist/id row)}) rows)}))
+
+(defresolver front
+  {:input  [{:global/current-recommendations recommendations/candidate-fields}]
+   :output [{:global/front [:recommendation/id]}]}
+  [_ {:global/keys [current-recommendations]}]
+  {:global/front
+   (mapv #(select-keys % [:recommendation/id])
+         (pareto/front (filterv :recommendation/eligible current-recommendations)
+                       recommendations/objectives))})
+
+(defresolver ranked-recommendations
+  {:output [{:global/ranked-recommendations [:recommendation/id]}]}
+
+  (fn [_ _]
+    [:biff.sqlite.fx/execute
+     {:select   [:recommendation/id]
+      :from     :recommendation
+      :order-by [:recommendation/rank]}])
+
+  (fn [_ rows]
+    {:global/ranked-recommendations rows}))
+
+;; Ranks are saved by the sync after its decklists, so a failed sync can leave
+;; ranks for decks that are no longer eligible.
+(defresolver stored-recommendations
+  {:input  [{:global/ranked-recommendations [:recommendation/id [:? :recommendation/eligible]]}]
+   :output [{:global/recommendations [:recommendation/id]}]}
+  [_ {:global/keys [ranked-recommendations]}]
+  {:global/recommendations
+   (into []
+         (comp (filter :recommendation/eligible)
+               (map #(select-keys % [:recommendation/id])))
+         ranked-recommendations)})
+
+(defresolver users
+  {:output [{:global/users [:user/id :user/email :user/joined-at]}]}
+
+  (fn [_ _]
+    [:biff.sqlite.fx/execute
+     {:select   [:user/id :user/email :user/joined-at]
+      :from     :user
+      :order-by [[:user/joined-at :desc]]}])
+
+  (fn [_ rows]
+    {:global/users rows}))
 
 (def notification-interval (tick/new-duration 24 :hours))
 
@@ -137,7 +159,9 @@
     tournaments
     card-sets
     standard-printings
+    current-recommendations
     front
-    stored
-    home-decklists
+    ranked-recommendations
+    stored-recommendations
+    users
     notification-candidates]})

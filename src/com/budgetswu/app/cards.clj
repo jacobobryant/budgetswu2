@@ -205,11 +205,12 @@
 (defpipeline set-search
   [:biff.graph.fx/query [[:? :request/card-search]]]
 
-  (fn [{:keys [biff.datastar/tab-id]} {:keys [request/card-search]}]
+  (fn [{:keys [session biff.datastar/tab-id]} {:keys [request/card-search]}]
     (if (and tab-id card-search)
       {:_      [:biff.sqlite.fx/authorized-write
                 {:insert-into   :tab-state
                  :values        [{:tab-state/id          tab-id
+                                  :tab-state/user-id     (:uid session)
                                   :tab-state/card-search card-search
                                   :tab-state/card-page   1}]
                  :on-conflict   [:tab-state/id]
@@ -220,11 +221,12 @@
 (defpipeline set-page
   [:biff.graph.fx/query [[:? :request/page]]]
 
-  (fn [{:keys [biff.datastar/tab-id]} {:keys [request/page]}]
+  (fn [{:keys [session biff.datastar/tab-id]} {:keys [request/page]}]
     (if (and tab-id page)
       {:_      [:biff.sqlite.fx/authorized-write
                 {:insert-into   :tab-state
                  :values        [{:tab-state/id        tab-id
+                                  :tab-state/user-id   (:uid session)
                                   :tab-state/card-page page}]
                  :on-conflict   [:tab-state/id]
                  :do-update-set [:tab-state/card-page]}]

@@ -1,19 +1,27 @@
 (ns com.budgetswu.app.admin
   (:require [clojure.set :as set]
             [com.biffweb.admin :as biff.admin]
-            [com.biffweb.datastar :as biff.datastar :refer [signal-name]]
             [com.biffweb.fx :refer [defpipeline]]
             [com.biffweb.ring :refer [defpath]]
-            [com.biffweb.sqlite :as biff.sqlite]
-            [com.budgetswu.lib.email :as lib.email]
+            [com.budgetswu.lib.email :as email]
             [com.budgetswu.lib.middleware :as mid]
             [com.budgetswu.lib.notification :as notification]
-            [com.budgetswu.lib.ranking :as ranking]
             [com.budgetswu.lib.recommendations :as recommendations]
             [com.budgetswu.lib.ui :as ui]
             [com.budgetswu.routes :as routes]))
 
+(defpath biff-admin "/_biff/admin")
+(defpath select-deck-path "/admin/select-deck")
 (defpath send-test-email-path "/admin/test-email")
+
+(defn- save-tab-state
+  "Returns an effect that upserts the tab's admin state."
+  [tab-id user-id fields]
+  [:biff.sqlite.fx/authorized-write
+   {:insert-into   :tab-state
+    :values        [(merge {:tab-state/id tab-id :tab-state/user-id user-id} fields)]
+    :on-conflict   [:tab-state/id]
+    :do-update-set (vec (keys fields))}])
 
 ;;;; Page ======================================================================
 
@@ -22,32 +30,34 @@
                          attrs)]
         content))
 
-(defn- deck-option [i {:recommendation/keys [id price-cents tournament-date]
-                       :as                  deck}]
-  [:li
-   [:label {:class ["flex cursor-pointer items-start gap-3 rounded-md px-2 py-2"
-                    "hover:bg-stone-100"]}
-    [:input {:type      "checkbox"
-             :value     id
-             :data-bind (signal-name :admin/selected)
-             :class     ["mt-1 h-4 w-4 shrink-0 accent-orange-700"]}]
-    [:span {:class ["min-w-0"]}
-     [:span {:class ["block font-medium"]}
-      [:span {:class ["text-stone-400"]} (str (inc i) ". ")]
-      (notification/decklist-label deck)]
-     [:span {:class ["block text-sm text-stone-500"]}
-      (str "Your cost " (recommendations/money price-cents) " · "
-           (recommendations/day tournament-date))]]]])
+(defn- deck-option [selected i {:recommendation/keys [id price-cents tournament-date]
+                                :as                  deck}]
+  (let [checked (contains? selected id)]
+    [:li
+     [:label {:class ["flex cursor-pointer items-start gap-3 rounded-md px-2 py-2"
+                      "hover:bg-stone-100"]}
+      [:input {:type           "checkbox"
+               :checked        checked
+               :data-action    (select-deck-path {:decklist-id id :selected (not checked)})
+               :data-on:change "@post(el.dataset.action)"
+               :class          ["mt-1 h-4 w-4 shrink-0 accent-orange-700"]}]
+      [:span {:class ["min-w-0"]}
+       [:span {:class ["block font-medium"]}
+        [:span {:class ["text-stone-400"]} (str (inc i) ". ")]
+        (notification/decklist-label deck)]
+       [:span {:class ["block text-sm text-stone-500"]}
+        (str "Your cost " (recommendations/money price-cents) " · "
+             (recommendations/day tournament-date))]]]]))
 
 (defpipeline admin-page
   [:biff.graph.fx/query
-   [{:session/user [:user/email {:user/recommendations ranking/fields}]}]]
+   [{:session/user [:user/email {:user/recommendations recommendations/fields}]}
+    {[:? :request/tab-state] [[:? :tab-state/admin-selected] [:? :tab-state/admin-status]]}]]
 
-  (fn [request {:keys [session/user]}]
+  (fn [request {:keys [session/user request/tab-state]}]
     (let [{:user/keys [email recommendations]} user
 
-          selected (str "$" (signal-name :admin/selected))
-          status   (str "$" (signal-name :admin/status))]
+          {:tab-state/keys [admin-selected admin-status]} tab-state]
       (ui/app-page
        request
        (ui/shell
@@ -59,77 +69,96 @@
           [:h2 {:class ["text-lg font-semibold"]} "Biff dashboard"]
           [:p {:class ["mt-2 text-stone-600"]}
            "Users, metrics, profiling, and alerts. "
-           [:a {:href  (routes/biff-admin)
+           [:a {:href  (biff-admin)
                 :class ["font-semibold text-orange-700 underline-offset-4"
                         "hover:underline"]}
             "Open the dashboard"]])
          (panel
-          {:data-signals__ifmissing (biff.datastar/signals-json
-                                     {:admin/selected [] :admin/status ""})}
+          {}
           [:h2 {:class ["text-lg font-semibold"]} "Test notification email"]
           [:p {:class ["mt-2 text-stone-600"]}
            (str "Sends " email " a notification email listing the selected "
                 "decks as new. Your seen decks aren't changed.")]
           (if (seq recommendations)
             [:ul {:class ["mt-4 grid gap-1"]}
-             (into [] (map-indexed deck-option) recommendations)]
+             (into [] (map-indexed (partial deck-option (set admin-selected))) recommendations)]
             [:p {:class ["mt-4 text-stone-500"]} "You have no recommendations yet."])
           [:div {:class ["mt-4 flex flex-wrap items-center gap-4"]}
-           [:button {:type               "button"
-                     :disabled           true
-                     :data-attr:disabled (str "!" selected ".some(Boolean)")
-                     :data-action        (send-test-email-path)
-                     :data-on:click      "@post(el.dataset.action)"
-                     :class              ["rounded-md bg-orange-700 px-4 py-2 text-sm"
-                                          "font-semibold text-white hover:bg-orange-800"
-                                          "disabled:cursor-not-allowed"
-                                          "disabled:bg-stone-300 disabled:text-stone-500"]}
+           [:button {:type          "button"
+                     :disabled      (empty? admin-selected)
+                     :data-action   (send-test-email-path)
+                     :data-on:click "@post(el.dataset.action)"
+                     :class         ["rounded-md bg-orange-700 px-4 py-2 text-sm"
+                                     "font-semibold text-white hover:bg-orange-800"
+                                     "disabled:cursor-not-allowed"
+                                     "disabled:bg-stone-300 disabled:text-stone-500"]}
             "Send test email"]
-           [:span {:data-text status :class ["text-sm text-stone-600"]}]])])))))
+           [:span {:class ["text-sm text-stone-600"]} admin-status]])])))))
 
 ;;;; Actions ===================================================================
 
+(defpipeline select-deck
+  [:biff.graph.fx/query
+   [{[:? :request/decklist] [:decklist/id]}
+    [:? :request/selected]
+    {[:? :request/tab-state] [:tab-state/id [:? :tab-state/admin-selected]]}]]
+
+  (fn [{:keys [session]} {:keys [request/decklist request/selected request/tab-state]}]
+    (let [{:tab-state/keys [id admin-selected]} tab-state]
+      (if (and decklist (some? selected) tab-state)
+        {:_      (save-tab-state
+                  id
+                  (:uid session)
+                  {:tab-state/admin-selected [:lift ((if selected conj disj)
+                                                     (set admin-selected)
+                                                     (:decklist/id decklist))]
+                   :tab-state/admin-status   nil})
+         :status 204}
+        {:status 400}))))
+
 (defpipeline send-test-email
   [:biff.graph.fx/query
-   [{:session/user [:user/id :user/email {:user/recommendations ranking/fields}]}
-    [:? :request/selected-recommendations]]]
+   [{:session/user [:user/id :user/email {:user/recommendations recommendations/fields}]}
+    {[:? :request/tab-state] [:tab-state/id [:? :tab-state/admin-selected]]}]]
 
   (fn [{:biff.fx/keys [random-uuid4-seq] :as ctx}
-       {:keys [session/user request/selected-recommendations]}]
+       {:keys [session/user request/tab-state]}]
     (let [{:user/keys [id email recommendations]} user
 
-          decks (filterv #(contains? selected-recommendations (:recommendation/id %))
+          decks (filterv #(contains? (:tab-state/admin-selected tab-state) (:recommendation/id %))
                          recommendations)
           token (first random-uuid4-seq)]
-      (if (empty? decks)
+      (if (or (nil? tab-state) (empty? decks))
         {:biff.fx/return {:status 400}}
-        ;; Notifications are written by the server rather than by users, so
-        ;; there are no authorization rules for them. The record makes the
-        ;; email's unsubscribe link work.
-        {:_          [:biff.sqlite.fx/execute (notification/insert ctx id token)]
-         :email      (notification/email ctx email recommendations decks token)
-         :deck-count (count recommendations)})))
+        ;; The record makes the email's unsubscribe link work.
+        {:_       [:biff.sqlite.fx/authorized-write (notification/insert ctx id token)]
+         :email   (notification/email ctx email recommendations decks token)
+         :user-id id
+         :tab-id  (:tab-state/id tab-state)})))
 
-  (fn [_ {:keys [email] :as result}]
-    (assoc result :_ [:com.budgetswu.fx/send-email email]))
+  (fn [ctx {:keys [email] :as result}]
+    (assoc result :response (email/send-fx ctx email)))
 
-  (fn [_ {:keys [email deck-count]}]
-    ;; Checkboxes bound to an array signal each own one slot, holding the
-    ;; deck's ID when checked and "" otherwise.
-    (biff.datastar/patch-signals {:admin/selected (vec (repeat deck-count ""))
-                                  :admin/status   (str "Sent to " (:to email) ".")})))
+  (fn [_ {:keys [email user-id tab-id response]}]
+    {:_      (save-tab-state
+              tab-id
+              user-id
+              {:tab-state/admin-selected [:lift #{}]
+               :tab-state/admin-status   (if (email/failure response)
+                                           (str "Couldn't send to " (:to email) ".")
+                                           (str "Sent to " (:to email) "."))})
+     :status 204}))
 
 ;;;; Biff dashboard ============================================================
 
-(defn- get-users [ctx]
-  (->> (biff.sqlite/execute ctx {:select   [:user/id
-                                            :user/email
-                                            :user/joined-at]
-                                 :from     :user
-                                 :order-by [[:user/joined-at :desc]]})
-       (mapv #(set/rename-keys % {:user/id        :user-id
-                                  :user/email     :email
-                                  :user/joined-at :joined-at}))))
+(defpipeline get-users
+  [:biff.graph.fx/query [{:global/users [:user/id :user/email :user/joined-at]}]]
+
+  (fn [_ {:global/keys [users]}]
+    (mapv #(set/rename-keys % {:user/id        :user-id
+                               :user/email     :email
+                               :user/joined-at :joined-at})
+          users)))
 
 (defn- get-usage-events [_ctx]
   ;; If you want to monitor usage, return maps from the past 37 days with keys
@@ -146,10 +175,11 @@
    {:biff.admin/get-usage-events   #'get-usage-events
     :biff.admin/get-revenue-events #'get-revenue-events
     :biff.admin/get-users          #'get-users
-    :biff.admin/send-email         #'lib.email/send-email}))
+    :biff.admin/send-email         #'email/send-email}))
 
 (def page-module
   {:biff.ring/routes
    ["" {:middleware [mid/wrap-signed-in mid/wrap-admin]}
     [(routes/admin)          {:get admin-page}]
+    [(select-deck-path)      {:post select-deck}]
     [(send-test-email-path)  {:post send-test-email}]]})

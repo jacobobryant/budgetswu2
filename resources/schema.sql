@@ -73,8 +73,11 @@ CREATE TABLE sync_state (
 
 CREATE TABLE tab_state (
   id BLOB PRIMARY KEY NOT NULL,
+  admin_selected BLOB,
+  admin_status TEXT,
   card_page INT,
-  card_search TEXT
+  card_search TEXT,
+  user_id BLOB
 ) STRICT;
 
 CREATE TABLE tournament (
@@ -120,4 +123,5 @@ CREATE INDEX idx_notification_created_at ON notification(created_at);
 CREATE INDEX idx_notification_user_id ON notification(user_id);
 CREATE INDEX idx_printing_card_id ON printing(card_id);
 CREATE INDEX idx_printing_collector_number ON printing(collector_number);
+CREATE INDEX idx_tab_state_user_id ON tab_state(user_id);
 CREATE INDEX idx_user_joined_at ON user(joined_at);

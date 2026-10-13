@@ -1,12 +1,7 @@
 (ns com.budgetswu.model.user
   (:require [com.biffweb.graph :refer [defresolver]]
-            [com.budgetswu.lib.ranking :as ranking]))
-
-(defresolver session-user
-  {:output [{:session/user [:user/id]}]}
-  [{:keys [session]} _]
-  (when-some [uid (:uid session)]
-    {:session/user {:user/id uid}}))
+            [com.budgetswu.lib.pareto :as pareto]
+            [com.budgetswu.lib.recommendations :as recommendations]))
 
 (defresolver owned-cards
   {:input  [:user/id]
@@ -33,21 +28,31 @@
                (mapv #(dissoc % :owned-card/user-id) (get by-user id []))})
             inputs))))
 
+(defresolver recommendation-candidates
+  {:input  [:user/id]
+   :output [{:user/recommendation-candidates
+             [:recommendation/id {:recommendation/user [:user/id]}]}]}
+
+  (fn [_ {:user/keys [id]}]
+    {:user-id id
+     :global  [:biff.graph.fx/query
+               [{:global/current-recommendations [:recommendation/id]}]]})
+
+  (fn [_ {:keys [user-id global]}]
+    {:user/recommendation-candidates
+     (mapv #(assoc % :recommendation/user {:user/id user-id})
+           (:global/current-recommendations global))}))
+
 (defresolver recommendations
-  {:input  [{:user/owned-cards [:owned-card/card-id :owned-card/quantity]}]
-   :output [{:user/recommendations ranking/fields}]}
-
-  (fn [_ {:user/keys [owned-cards]}]
-    {:owned      (into {}
-                       (map (juxt :owned-card/card-id :owned-card/quantity))
-                       owned-cards)
-     :decks      [:biff.sqlite.fx/execute ranking/current-deck-query]
-     :cards      [:biff.sqlite.fx/execute ranking/card-query]
-     :archetypes [:biff.sqlite.fx/execute ranking/current-archetype-query]})
-
-  (fn [_ {:keys [owned decks cards archetypes]}]
-    {:user/recommendations
-     (ranking/pareto-front (ranking/candidates decks cards archetypes owned))}))
+  {:input  [{:user/recommendation-candidates
+             (conj recommendations/candidate-fields {:recommendation/user [:user/id]})}]
+   :output [{:user/recommendations
+             [:recommendation/id {:recommendation/user [:user/id]}]}]}
+  [_ {:user/keys [recommendation-candidates]}]
+  {:user/recommendations
+   (mapv #(select-keys % [:recommendation/id :recommendation/user])
+         (pareto/front (filterv :recommendation/eligible recommendation-candidates)
+                       recommendations/objectives))})
 
 (def module
-  {:biff.graph/resolvers [session-user owned-cards recommendations]})
+  {:biff.graph/resolvers [owned-cards recommendation-candidates recommendations]})
