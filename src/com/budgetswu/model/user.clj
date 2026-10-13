@@ -31,28 +31,34 @@
 (defresolver recommendation-candidates
   {:input  [:user/id]
    :output [{:user/recommendation-candidates
-             [:recommendation/id {:recommendation/user [:user/id]}]}]}
+             [:recommendation/id {:recommendation/user [:user/id]}]}]
+   :batch  true}
 
-  (fn [_ {:user/keys [id]}]
-    {:user-id id
-     :global  [:biff.graph.fx/query
-               [{:global/current-recommendations [:recommendation/id]}]]})
+  (fn [_ inputs]
+    {:inputs inputs
+     :global [:biff.graph.fx/query
+              [{:global/current-recommendations [:recommendation/id]}]]})
 
-  (fn [_ {:keys [user-id global]}]
-    {:user/recommendation-candidates
-     (mapv #(assoc % :recommendation/user {:user/id user-id})
-           (:global/current-recommendations global))}))
+  (fn [_ {:keys [inputs global]}]
+    (mapv (fn [{:user/keys [id]}]
+            {:user/recommendation-candidates
+             (mapv #(assoc % :recommendation/user {:user/id id})
+                   (:global/current-recommendations global))})
+          inputs)))
 
 (defresolver recommendations
   {:input  [{:user/recommendation-candidates
              (conj recommendations/candidate-fields {:recommendation/user [:user/id]})}]
    :output [{:user/recommendations
-             [:recommendation/id {:recommendation/user [:user/id]}]}]}
-  [_ {:user/keys [recommendation-candidates]}]
-  {:user/recommendations
-   (mapv #(select-keys % [:recommendation/id :recommendation/user])
-         (pareto/front (filterv :recommendation/eligible recommendation-candidates)
-                       recommendations/objectives))})
+             [:recommendation/id {:recommendation/user [:user/id]}]}]
+   :batch  true}
+  [_ inputs]
+  (mapv (fn [{:user/keys [recommendation-candidates]}]
+          {:user/recommendations
+           (mapv #(select-keys % [:recommendation/id :recommendation/user])
+                 (pareto/front (filterv :recommendation/eligible recommendation-candidates)
+                               recommendations/objectives))})
+        inputs))
 
 (def module
   {:biff.graph/resolvers [owned-cards recommendation-candidates recommendations]})

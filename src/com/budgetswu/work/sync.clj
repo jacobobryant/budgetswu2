@@ -58,6 +58,23 @@
                       (str (encode (if (keyword? k) (name k) k)) "=" (encode v)))
                     params))))
 
+(defn sign-in-request
+  "Returns melee.gg's sign-in request. The form is sent as bytes so the
+  credentials don't appear in biff.fx error traces."
+  [{:com.budgetswu/keys [melee-email melee-password] :as ctx} token cookies]
+  (when-not (and melee-email melee-password)
+    (throw (ex-info "MELEE_EMAIL and MELEE_PASSWORD must be set" {})))
+  (let [form (query-string {"__RequestVerificationToken" token
+                            "ReturnUrl"                  "/"
+                            "Email"                      melee-email
+                            "Password"                   (force melee-password)})]
+    (http-request ctx {:url     (str melee "/Account/SignInPassword")
+                       :method  :post
+                       :headers {"Content-Type"     "application/x-www-form-urlencoded"
+                                 "Cookie"           (cookie-header cookies)
+                                 "X-Requested-With" "XMLHttpRequest"}
+                       :body    (.getBytes ^String form "UTF-8")})))
+
 (defn- url [base path params]
   (str base path (when (seq params) (str "?" (query-string params)))))
 
@@ -535,12 +552,7 @@
                        (into #{} (map :tournament/id) (:global/tournaments graph))
                        #{})
        :cookies      cookies
-       :response     [:com.budgetswu.fx/melee-sign-in
-                      {:url     (str melee "/Account/SignInPassword")
-                       :token   token
-                       :headers {"User-Agent"       (user-agent ctx)
-                                 "Cookie"           (cookie-header cookies)
-                                 "X-Requested-With" "XMLHttpRequest"}}]
+       :response     [:biff.fx/http (sign-in-request ctx token cookies)]
        :biff.fx/next :search-decklists}))
 
   :search-decklists

@@ -1,7 +1,6 @@
 (ns com.budgetswu.fx
   (:require [clojure.java.io :as io]
-            [clojure.tools.logging :as log]
-            [hato.client :as hato])
+            [clojure.tools.logging :as log])
   (:import [java.nio.file AtomicMoveNotSupportedException
             Files StandardCopyOption]))
 
@@ -33,26 +32,8 @@
 (defn log-message [_ level message]
   (log/log level message))
 
-(defn melee-sign-in
-  "Posts melee.gg's sign-in form. The credentials are read from ctx rather than
-  passed as arguments so they can't end up in effect error logs, and the
-  response doesn't include the request."
-  [{:com.budgetswu/keys [melee-email melee-password]} {:keys [url token headers]}]
-  (when-not (and melee-email melee-password)
-    (throw (ex-info "MELEE_EMAIL and MELEE_PASSWORD must be set" {})))
-  (-> (hato/request {:url              url
-                     :method           :post
-                     :headers          headers
-                     :throw-exceptions false
-                     :form-params      {"__RequestVerificationToken" token
-                                        "ReturnUrl"                  "/"
-                                        "Email"                      melee-email
-                                        "Password"                   (force melee-password)}})
-      (select-keys [:status :headers :body])))
-
 (def module
   {:biff.fx/handlers
    {:com.budgetswu.fx/read-home-html  read-home-html
     :com.budgetswu.fx/write-home-html write-home-html
-    :com.budgetswu.fx/log             log-message
-    :com.budgetswu.fx/melee-sign-in   melee-sign-in}})
+    :com.budgetswu.fx/log             log-message}})

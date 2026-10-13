@@ -16,13 +16,25 @@
 (def ^:private datastar-script-url
   "https://cdn.jsdelivr.net/gh/starfederation/datastar@v1.0.1/bundles/datastar.js")
 
-(defn static-path [path]
-  (if-some [last-modified (some-> (io/resource (str "public" path))
-                                  ring-response/resource-data
-                                  :last-modified
-                                  (.getTime))]
-    (str path "?t=" last-modified)
-    path))
+(def ^:private static-files
+  [(:ui/icon default-page-opts) "/css/main.css" "/js/main.js"])
+
+(defn static-paths
+  "Returns a map from each static file's path to the path with a cache-busting
+  query param. Reads resource metadata, so it's called once at startup."
+  []
+  (into {}
+        (map (fn [path]
+               [path (if-some [last-modified (some-> (io/resource (str "public" path))
+                                                     ring-response/resource-data
+                                                     :last-modified
+                                                     (.getTime))]
+                       (str path "?t=" last-modified)
+                       path)]))
+        static-files))
+
+(defn- static-path [{:keys [com.budgetswu/static-paths]} path]
+  (get static-paths path path))
 
 (defn html-response [body]
   {:status  200
@@ -55,9 +67,9 @@
           [[:meta {:content (absolute-url opts image) :property "og:image"}]
            [:meta {:content "summary_large_image" :name "twitter:card"}]])
         (when icon
-          [:link {:rel "icon" :href (static-path icon)}])
-        [:link {:rel "stylesheet" :href (static-path "/css/main.css")}]
-        [:script {:src (static-path "/js/main.js")}]
+          [:link {:rel "icon" :href (static-path opts icon)}])
+        [:link {:rel "stylesheet" :href (static-path opts "/css/main.css")}]
+        [:script {:src (static-path opts "/js/main.js")}]
         [:script {:type "module" :src datastar-script-url}]]
        [:body (merge {:class ["absolute min-h-full w-full flex flex-col"]}
                      (when init-datastar

@@ -350,20 +350,31 @@
         graph  {:global/sync-states [{:sync-state/id        "melee-decklists"
                                       :sync-state/watermark "2026-10-10"}]
                 :global/tournaments [{:tournament/id "t1"}]}
-        signed (sign-in (assoc ctx :biff.fx/now now) {:game-meta meta* :graph graph :page page})]
+        ctx*   (assoc ctx
+                      :biff.fx/now                  now
+                      :com.budgetswu/melee-email    "a@example.com"
+                      :com.budgetswu/melee-password (delay "p w"))
+        signed (sign-in ctx* {:game-meta meta* :graph graph :page page})]
     (is (= "https://melee.gg/Account/SignIn"
            (get-in (fetch-sign-in-page ctx {:game-meta meta*}) [:page 1 :url])))
-    (is (= [:com.budgetswu.fx/melee-sign-in
-            {:url     "https://melee.gg/Account/SignInPassword"
-             :token   "tok"
-             :headers {"User-Agent"       (sync/user-agent ctx)
-                       "Cookie"           "a=1"
-                       "X-Requested-With" "XMLHttpRequest"}}]
-           (:response signed)))
+    (is (= :biff.fx/http (first (:response signed))))
+    (is (= {:url     "https://melee.gg/Account/SignInPassword"
+            :method  :post
+            :headers {"Content-Type"     "application/x-www-form-urlencoded"
+                      "Cookie"           "a=1"
+                      "X-Requested-With" "XMLHttpRequest"
+                      "User-Agent"       (sync/user-agent ctx)}}
+           (dissoc (second (:response signed)) :body)))
+    (is (= (str "__RequestVerificationToken=tok&ReturnUrl=%2F"
+                "&Email=a%40example.com&Password=p+w")
+           (String. ^bytes (:body (second (:response signed))) "UTF-8")))
+    (testing "missing credentials are rejected"
+      (is (thrown? clojure.lang.ExceptionInfo
+                   (sync/sign-in-request ctx "tok" "a=1"))))
     (is (= ["2026-10-10" #{"t1"} (tick/date "2026-10-12")]
            ((juxt :watermark :known :today) signed)))
     (testing "a full sync treats every tournament as new"
-      (is (= #{} (:known (sign-in (assoc ctx :biff.fx/now now)
+      (is (= #{} (:known (sign-in ctx*
                                   {:game-meta meta*
                                    :graph     (dissoc graph :global/sync-states)
                                    :page      page})))))

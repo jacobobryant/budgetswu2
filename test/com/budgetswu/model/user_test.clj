@@ -30,16 +30,19 @@
 (deftest recommendation-candidates
   (let [query  (atom nil)
         result ((:biff.graph/resolve-fn user/recommendation-candidates)
-                {:biff.graph/input {:user/id uid-1}
+                {:biff.graph/input [{:user/id uid-1} {:user/id uid-2}]
                  :biff.fx/handlers {:biff.graph.fx/query
                                     (fn [_ q]
                                       (reset! query q)
                                       {:global/current-recommendations
                                        [{:recommendation/id "a"} {:recommendation/id "b"}]})}})]
     (is (= [{:global/current-recommendations [:recommendation/id]}] @query))
-    (is (= {:user/recommendation-candidates
-            [{:recommendation/id "a" :recommendation/user {:user/id uid-1}}
-             {:recommendation/id "b" :recommendation/user {:user/id uid-1}}]}
+    (is (= [{:user/recommendation-candidates
+             [{:recommendation/id "a" :recommendation/user {:user/id uid-1}}
+              {:recommendation/id "b" :recommendation/user {:user/id uid-1}}]}
+            {:user/recommendation-candidates
+             [{:recommendation/id "a" :recommendation/user {:user/id uid-2}}
+              {:recommendation/id "b" :recommendation/user {:user/id uid-2}}]}]
            result))))
 
 (deftest recommendations
@@ -51,12 +54,14 @@
                      :recommendation/price-cents         price
                      :recommendation/percentile          1/2
                      :recommendation/archetype-frequency 1})]
-    (is (= {:user/recommendations [{:recommendation/id "b" :recommendation/user user}]}
+    (is (= [{:user/recommendations [{:recommendation/id "b" :recommendation/user user}]}
+            {:user/recommendations []}]
            (resolve-with user/recommendations
                          {:biff.graph/input
-                          {:user/recommendation-candidates
-                           [(candidate "a" false 100)
-                            (candidate "b" true 200)
-                            (candidate "c" true 300)
-                            {:recommendation/id "d" :recommendation/user user}]}}
+                          [{:user/recommendation-candidates
+                            [(candidate "a" false 100)
+                             (candidate "b" true 200)
+                             (candidate "c" true 300)
+                             {:recommendation/id "d" :recommendation/user user}]}
+                           {:user/recommendation-candidates []}]}
                          {})))))

@@ -24,7 +24,9 @@
             [com.budgetswu.work.sync :as work.sync]))
 
 (def modules
-  [{:biff.core/init {:biff.ring/on-error #'lib.ui/on-error}}
+  [{:biff.core/init (fn [_]
+                      {:biff.ring/on-error         #'lib.ui/on-error
+                       :com.budgetswu/static-paths (lib.ui/static-paths)})}
    (biff.config/module)
    (biff.ring/module)
    (biff.datastar/module)

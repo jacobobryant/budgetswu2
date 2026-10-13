@@ -81,8 +81,11 @@
           {}]
          (resolve-with recommendation/popularity
                        [{:recommendation/id "a"} {:recommendation/id "old"}]
-                       [{:decklist/id "a" :decklist/leader-id "Luke" :card-aspect/aspect "Command"}
-                        {:decklist/id "b" :decklist/leader-id "Luke" :card-aspect/aspect "Command"}]))))
+                       (mapv (fn [id]
+                               {:decklist/id        id
+                                :decklist/leader-id "Luke"
+                                :card-aspect/aspect "Command"})
+                             ["a" "b"])))))
 
 (deftest prices
   (let [cards [{:deck-card/decklist-id "a"

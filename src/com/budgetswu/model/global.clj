@@ -6,13 +6,13 @@
 
 (defresolver sync-states
   {:output [{:global/sync-states
-             [:sync-state/id [:? :sync-state/watermark]
+             [:sync-state/id
+              [:? :sync-state/watermark]
               [:? :sync-state/attempted-at]]}]}
 
   (fn [_ _]
     [:biff.sqlite.fx/execute
-     {:select [:sync-state/id :sync-state/watermark
-               :sync-state/attempted-at]
+     {:select [:sync-state/id :sync-state/watermark :sync-state/attempted-at]
       :from   :sync-state}])
 
   (fn [_ rows]
