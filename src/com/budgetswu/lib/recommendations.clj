@@ -37,9 +37,12 @@
   (format "$%.2f" (/ cents 100.0)))
 
 (def description
-  (str "Decklists for Star Wars: Unlimited, recommended based on price, "
-       "performance, and popularity. Sign in to get recommendations based on "
-       "the cards you already own."))
+  [(str "Decklists for Star Wars: Unlimited, recommended based on price, "
+        "performance, and popularity. Sign in to get recommendations based on "
+        "the cards you already own. ")
+   [:a {:href "https://obryant.dev/p/budgetswu"
+        :class "text-orange-400 underline-offset-4 hover:underline"}
+    "About"] "."])
 
 (defn melee-url [melee-id]
   (str "https://melee.gg/Decklist/View/" melee-id))
