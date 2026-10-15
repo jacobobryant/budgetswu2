@@ -14,50 +14,10 @@ CREATE TABLE card (
   type TEXT
 ) STRICT;
 
-CREATE TABLE card_aspect (
-  id TEXT PRIMARY KEY NOT NULL,
-  aspect TEXT NOT NULL,
-  card_id TEXT NOT NULL
-) STRICT;
-
 CREATE TABLE card_set (
   id TEXT PRIMARY KEY NOT NULL,
   number INT,
   published_on TEXT
-) STRICT;
-
-CREATE TABLE deck_card (
-  id TEXT PRIMARY KEY NOT NULL,
-  card_id TEXT NOT NULL,
-  decklist_id TEXT NOT NULL,
-  quantity INT NOT NULL
-) STRICT;
-
-CREATE TABLE decklist (
-  id TEXT PRIMARY KEY NOT NULL,
-  tournament_id TEXT NOT NULL,
-  base_id TEXT,
-  format TEXT,
-  leader_id TEXT,
-  placement INT,
-  player_name TEXT
-) STRICT;
-
-CREATE TABLE meta (
-  id TEXT PRIMARY KEY NOT NULL,
-  is_current INT NOT NULL,
-  start_date TEXT NOT NULL,
-  end_date TEXT,
-  set_id TEXT
-) STRICT;
-
-CREATE TABLE printing (
-  id TEXT PRIMARY KEY NOT NULL,
-  card_id TEXT NOT NULL,
-  card_set_id TEXT NOT NULL,
-  collector_number TEXT NOT NULL,
-  external_uid TEXT,
-  variant TEXT
 ) STRICT;
 
 CREATE TABLE recommendation (
@@ -69,15 +29,6 @@ CREATE TABLE sync_state (
   id TEXT PRIMARY KEY NOT NULL,
   attempted_at TEXT,
   watermark TEXT
-) STRICT;
-
-CREATE TABLE tab_state (
-  id BLOB PRIMARY KEY NOT NULL,
-  admin_selected BLOB,
-  admin_status TEXT,
-  card_page INT,
-  card_search TEXT,
-  user_id BLOB
 ) STRICT;
 
 CREATE TABLE tournament (
@@ -98,6 +49,35 @@ CREATE TABLE user (
   UNIQUE(email)
 ) STRICT;
 
+CREATE TABLE card_aspect (
+  id TEXT PRIMARY KEY NOT NULL,
+  aspect TEXT NOT NULL,
+  card_id TEXT NOT NULL,
+  FOREIGN KEY(card_id) REFERENCES card(id)
+) STRICT;
+
+CREATE TABLE decklist (
+  id TEXT PRIMARY KEY NOT NULL,
+  tournament_id TEXT NOT NULL,
+  base_id TEXT,
+  format TEXT,
+  leader_id TEXT,
+  placement INT,
+  player_name TEXT,
+  FOREIGN KEY(base_id) REFERENCES card(id),
+  FOREIGN KEY(leader_id) REFERENCES card(id),
+  FOREIGN KEY(tournament_id) REFERENCES tournament(id)
+) STRICT;
+
+CREATE TABLE meta (
+  id TEXT PRIMARY KEY NOT NULL,
+  is_current INT NOT NULL,
+  start_date TEXT NOT NULL,
+  end_date TEXT,
+  set_id TEXT,
+  FOREIGN KEY(set_id) REFERENCES card_set(id)
+) STRICT;
+
 CREATE TABLE notification (
   id BLOB PRIMARY KEY NOT NULL,
   created_at INT NOT NULL,
@@ -112,8 +92,39 @@ CREATE TABLE owned_card (
   card_id TEXT NOT NULL,
   quantity INT NOT NULL,
   user_id BLOB NOT NULL,
+  FOREIGN KEY(card_id) REFERENCES card(id),
   FOREIGN KEY(user_id) REFERENCES user(id),
   UNIQUE(user_id, card_id)
+) STRICT;
+
+CREATE TABLE printing (
+  id TEXT PRIMARY KEY NOT NULL,
+  card_id TEXT NOT NULL,
+  card_set_id TEXT NOT NULL,
+  collector_number TEXT NOT NULL,
+  external_uid TEXT,
+  variant TEXT,
+  FOREIGN KEY(card_id) REFERENCES card(id),
+  FOREIGN KEY(card_set_id) REFERENCES card_set(id)
+) STRICT;
+
+CREATE TABLE tab_state (
+  id BLOB PRIMARY KEY NOT NULL,
+  admin_selected BLOB,
+  admin_status TEXT,
+  card_page INT,
+  card_search TEXT,
+  user_id BLOB,
+  FOREIGN KEY(user_id) REFERENCES user(id)
+) STRICT;
+
+CREATE TABLE deck_card (
+  id TEXT PRIMARY KEY NOT NULL,
+  card_id TEXT NOT NULL,
+  decklist_id TEXT NOT NULL,
+  quantity INT NOT NULL,
+  FOREIGN KEY(card_id) REFERENCES card(id),
+  FOREIGN KEY(decklist_id) REFERENCES decklist(id)
 ) STRICT;
 
 CREATE INDEX idx_card_aspect_card_id ON card_aspect(card_id);

@@ -1,1 +1,138 @@
 classDiagram
+  class card-aspect {
+    card-aspect/aspect
+    card-aspect/card
+    card-aspect/card-id
+    card-aspect/id
+  }
+  class card-set {
+    card-set/id
+    card-set/number
+    card-set/published-on
+  }
+  class card {
+    card/id
+    card/price-cents
+    card/type
+  }
+  class deck-card {
+    deck-card/card
+    deck-card/card-id
+    deck-card/decklist
+    deck-card/decklist-id
+    deck-card/id
+    deck-card/quantity
+  }
+  class decklist {
+    decklist/base
+    decklist/base-id
+    decklist/format
+    decklist/id
+    decklist/leader
+    decklist/leader-id
+    decklist/placement
+    decklist/player-name
+    decklist/tournament
+    decklist/tournament-id
+  }
+  class meta {
+    meta/end-date
+    meta/id
+    meta/is-current
+    meta/set
+    meta/set-id
+    meta/start-date
+  }
+  class notification {
+    notification/created-at
+    notification/id
+    notification/token
+    notification/user
+    notification/user-id
+  }
+  class owned-card {
+    owned-card/card
+    owned-card/card-id
+    owned-card/id
+    owned-card/quantity
+    owned-card/user
+    owned-card/user-id
+  }
+  class printing {
+    printing/card
+    printing/card-id
+    printing/card-set
+    printing/card-set-id
+    printing/collector-number
+    printing/external-uid
+    printing/id
+    printing/variant
+  }
+  class recommendation {
+    recommendation/archetype-count
+    recommendation/archetype-frequency
+    recommendation/base-name
+    recommendation/card-count
+    recommendation/eligible
+    recommendation/full-price-cents
+    recommendation/id
+    recommendation/leader-name
+    recommendation/melee-id
+    recommendation/percentile
+    recommendation/placement
+    recommendation/player-count
+    recommendation/player-name
+    recommendation/popularity-rank
+    recommendation/price-cents
+    recommendation/rank
+    recommendation/tournament-date
+    recommendation/tournament-name
+  }
+  class sync-state {
+    sync-state/attempted-at
+    sync-state/id
+    sync-state/watermark
+  }
+  class tab-state {
+    tab-state/admin-selected
+    tab-state/admin-status
+    tab-state/card-page
+    tab-state/card-search
+    tab-state/id
+    tab-state/user
+    tab-state/user-id
+  }
+  class tournament {
+    tournament/format
+    tournament/held-at
+    tournament/id
+    tournament/name
+    tournament/player-count
+  }
+  class user {
+    user/display-name
+    user/email
+    user/id
+    user/joined-at
+    user/owned-cards
+    user/recommendation-candidates
+    user/recommendations
+    user/seen-recommendations
+    user/unsubscribed-at
+  }
+  card-aspect -- card : card-aspect/card
+  deck-card -- card : deck-card/card
+  deck-card -- decklist : deck-card/decklist
+  decklist -- card : decklist/base
+  decklist -- card : decklist/leader
+  decklist -- tournament : decklist/tournament
+  meta -- card-set : meta/set
+  notification -- user : notification/user
+  owned-card -- card : owned-card/card
+  owned-card -- user : owned-card/user
+  printing -- card : printing/card
+  printing -- card-set : printing/card-set
+  tab-state -- user : tab-state/user
+  user -- owned-card : user/owned-cards
+  user -- recommendation : user/recommendation-candidates
+  user -- recommendation : user/recommendations

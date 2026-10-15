@@ -431,14 +431,17 @@
         (is (= ["a" "b" "c"] (mapv (comp :decklist/id :decklist) (:decklists result))))
         (is (= ["2"] (mapv :tournament/id (:tournaments result))))
         (is (= ["https://melee.gg/Tournament/View/2"]
-               (mapv :url (second (:pages result)))))))
+               (mapv :url (second (:pages result)))))
+        (is (= [:biff.graph.fx/query [{:global/cards [:card/id]}]] (:graph result)))))
     (is (thrown? clojure.lang.ExceptionInfo
                  (next-decklists ctx (assoc state :response (json-response {})))))
     (let [decklist (sync/melee-decklist (search-row "b" 2 "Ended"))
           save     #(get-in (save-decklists {} (merge state
                                                       {:decklists   [decklist]
                                                        :tournaments [(:tournament decklist)]
-                                                       :pages       [{:body "12 Enrolled Players"}]}
+                                                       :pages       [{:body "12 Enrolled Players"}]
+                                                       :graph       {:global/cards
+                                                                     [{:card/id "Common Cause"}]}}
                                                       %))
                             [:_ 1])]
       (testing "decklists are saved with their tournaments"
@@ -448,9 +451,19 @@
                                                          (subvec tx 1 4))))
           (is (= {:sync-state/id "melee-decklists" :sync-state/watermark "2026-10-09"}
                  (get-in (peek tx) [:values 0])))))
+      (testing "decklists with unknown cards are skipped"
+        (let [tx (save {:graph {:global/cards []}})]
+          (is (= [:tournament :sync-state] (mapv :insert-into tx)))))
       (testing "a full sync replaces all tournaments"
         (is (= [{:delete-from :deck-card} {:delete-from :decklist} {:delete-from :tournament}]
                (subvec (save {:watermark nil}) 0 3)))))))
+
+(deftest known-cards
+  (let [decklist {:decklist {:decklist/leader-id "Luke" :decklist/base-id nil}
+                  :cards    [{:deck-card/card-id "Wing Leader"}]}]
+    (is (sync/known-cards? #{"Luke" "Wing Leader"} decklist))
+    (is (not (sync/known-cards? #{"Wing Leader"} decklist)))
+    (is (not (sync/known-cards? #{"Luke"} decklist)))))
 
 (deftest sync-job-recommendations
   (let [{:keys [fetch-recommendations save-recommendations notify enqueue-notifications]} states]

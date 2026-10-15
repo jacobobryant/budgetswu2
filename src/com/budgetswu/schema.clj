@@ -10,7 +10,7 @@
 ;; decks not in it.
 (def columns
   {:tab-state/id             s/pkey
-   :tab-state/user-id        (s/uuid :index)
+   :tab-state/user-id        (s/ref :user/id :index)
    :tab-state/card-search    (s/text)
    :tab-state/card-page      (s/int)
    :tab-state/admin-selected (s/edn [:set :string])
@@ -35,8 +35,8 @@
    ;; Printing IDs are starwarsunlimited.com's internal IDs; external UIDs are
    ;; the card IDs used in starwarsunlimited.com links.
    :printing/id               (s/text {:primary-key true})
-   :printing/card-id          (s/text :required :index)
-   :printing/card-set-id      (s/text :required)
+   :printing/card-id          (s/text :required :index {:ref :card/id})
+   :printing/card-set-id      (s/text :required {:ref :card-set/id})
    :printing/collector-number (s/text :required :index)
    :printing/variant          (s/text)
    :printing/external-uid     (s/text)
@@ -46,14 +46,14 @@
    :card-set/published-on (s/text)
 
    :card-aspect/id      (s/text {:primary-key true})
-   :card-aspect/card-id (s/text :required :index)
+   :card-aspect/card-id (s/text :required :index {:ref :card/id})
    :card-aspect/aspect  (s/text :required)
 
    :meta/id         (s/text {:primary-key true})
    :meta/start-date (s/text :required)
    :meta/end-date   (s/text)
    :meta/is-current (s/bool :required)
-   :meta/set-id     (s/text)
+   :meta/set-id     (s/text {:ref :card-set/id})
 
    ;; Tournament and decklist IDs are melee.gg's IDs.
    :tournament/id           (s/text {:primary-key true})
@@ -63,21 +63,21 @@
    :tournament/format       (s/text)
 
    :decklist/id            (s/text {:primary-key true})
-   :decklist/tournament-id (s/text :required :index)
+   :decklist/tournament-id (s/text :required :index {:ref :tournament/id})
    :decklist/player-name   (s/text)
-   :decklist/leader-id     (s/text)
-   :decklist/base-id       (s/text)
+   :decklist/leader-id     (s/text {:ref :card/id})
+   :decklist/base-id       (s/text {:ref :card/id})
    :decklist/format        (s/text)
    :decklist/placement     (s/int)
 
    :deck-card/id          (s/text {:primary-key true})
-   :deck-card/decklist-id (s/text :required :index)
-   :deck-card/card-id     (s/text :required)
+   :deck-card/decklist-id (s/text :required :index {:ref :decklist/id})
+   :deck-card/card-id     (s/text :required {:ref :card/id})
    :deck-card/quantity    (s/int :required)
 
    :owned-card/id       s/pkey
    :owned-card/user-id  (s/ref :user/id :required {:unique-with [:owned-card/card-id]})
-   :owned-card/card-id  (s/text :required)
+   :owned-card/card-id  (s/text :required {:ref :card/id})
    :owned-card/quantity (s/int :required)
 
    :sync-state/id           (s/text {:primary-key true})

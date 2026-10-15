@@ -13,7 +13,8 @@
 
 (defn start []
   (reset! system (biff.core/start #'modules start-order))
-  (spit "graph.mmd" (biff.graph/uml @system)))
+  (spit "graph.mmd" (biff.graph/uml {:biff.graph/resolvers
+                                     (mapcat :biff.graph/resolvers modules)})))
 
 (defn stop []
   (biff.core/stop @system)

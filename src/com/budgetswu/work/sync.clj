@@ -297,6 +297,14 @@
                                {}
                                cards))}))
 
+(defn known-cards?
+  "Returns true if all of a decklist's cards are in `card-ids`."
+  [card-ids {:keys [decklist cards]}]
+  (every? #(or (nil? %) (contains? card-ids %))
+          (into [(:decklist/leader-id decklist) (:decklist/base-id decklist)]
+                (map :deck-card/card-id)
+                cards)))
+
 (defn- decklist-tx [{:keys [decklist cards]}]
   (into [(upsert :decklist :decklist/id decklist)
          {:delete-from :deck-card
@@ -598,6 +606,7 @@
           (-> (select-keys state [:game-meta :today :watermark])
               (assoc :decklists    decklists
                      :tournaments  tournaments
+                     :graph        [:biff.graph.fx/query [{:global/cards [:card/id]}]]
                      :pages        [:biff.fx/http
                                     (mapv #(http-request
                                             ctx
@@ -606,26 +615,30 @@
                                           tournaments)]
                      :biff.fx/next :save-decklists))))))
 
+  ;; Decklists with cards that the card sync didn't find are skipped.
   :save-decklists
-  (fn [_ {:keys [game-meta today watermark decklists tournaments pages]}]
-    {:_            [:biff.sqlite.fx/execute-tx
-                    (-> (if watermark
-                          []
-                          [{:delete-from :deck-card}
-                           {:delete-from :decklist}
-                           {:delete-from :tournament}])
-                        (into (mapv (fn [tournament page]
-                                      (upsert :tournament :tournament/id
-                                              (assoc tournament
-                                                     :tournament/player-count
-                                                     (enrolled-players (:body page)))))
-                                    tournaments
-                                    pages))
-                        (into (mapcat decklist-tx) decklists)
-                        (conj (save-state "melee-decklists"
-                                          :sync-state/watermark
-                                          (next-decklist-watermark game-meta today))))]
-     :biff.fx/next :fetch-recommendations})
+  (fn [_ {:keys [game-meta today watermark decklists tournaments pages graph]}]
+    (let [card-ids (into #{} (map :card/id) (:global/cards graph))]
+      {:_            [:biff.sqlite.fx/execute-tx
+                      (-> (if watermark
+                            []
+                            [{:delete-from :deck-card}
+                             {:delete-from :decklist}
+                             {:delete-from :tournament}])
+                          (into (mapv (fn [tournament page]
+                                        (upsert :tournament :tournament/id
+                                                (assoc tournament
+                                                       :tournament/player-count
+                                                       (enrolled-players (:body page)))))
+                                      tournaments
+                                      pages))
+                          (into (comp (filter #(known-cards? card-ids %))
+                                      (mapcat decklist-tx))
+                                decklists)
+                          (conj (save-state "melee-decklists"
+                                            :sync-state/watermark
+                                            (next-decklist-watermark game-meta today))))]
+       :biff.fx/next :fetch-recommendations}))
 
   :fetch-recommendations
   (fn [_ _]

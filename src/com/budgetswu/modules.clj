@@ -5,6 +5,7 @@
             [com.biffweb.fx :as biff.fx]
             [com.biffweb.graph :as biff.graph]
             [com.biffweb.ring :as biff.ring]
+            [com.biffweb.sqlite :as biff.sqlite]
             [com.budgetswu.app.admin :as app.admin]
             [com.budgetswu.app.auth :as app.auth]
             [com.budgetswu.app.cards :as app.cards]
@@ -20,6 +21,7 @@
             [com.budgetswu.model.sqlite :as model.sqlite]
             [com.budgetswu.model.user :as model.user]
             [com.budgetswu.model.global :as model.global]
+            [com.budgetswu.model.migration :as model.migration]
             [com.budgetswu.model.request :as model.request]
             [com.budgetswu.work.sync :as work.sync]))
 
@@ -37,6 +39,10 @@
    model.session/module
    model.user/module
    model.recommendation/module
+   (biff.sqlite/litestream-module)
+   model.migration/module
+   (biff.sqlite/sqldef-module)
+   (biff.sqlite/conn-module)
    model.sqlite/module
    model.global/module
    model.request/module
@@ -54,7 +60,10 @@
 
 (def start-order
   [:biff.config/module
-   :biff.sqlite/module
+   :biff.sqlite/litestream-module
+   :com.budgetswu.model.migration/module
+   :biff.sqlite/sqldef-module
+   :biff.sqlite/conn-module
    :biff.admin/module
    :biff.background/module
    :biff.ring/module])

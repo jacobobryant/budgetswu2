@@ -40,6 +40,15 @@
   (fn [_ rows]
     {:global/tournaments rows}))
 
+(defresolver cards
+  {:output [{:global/cards [:card/id]}]}
+
+  (fn [_ _]
+    [:biff.sqlite.fx/execute {:select [:card/id] :from :card}])
+
+  (fn [_ rows]
+    {:global/cards rows}))
+
 (defresolver card-sets
   {:output [{:global/card-sets [:card-set/id
                                 [:? :card-set/number]
