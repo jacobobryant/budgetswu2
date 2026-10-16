@@ -4,10 +4,10 @@
   (:import [java.nio.file AtomicMoveNotSupportedException
             Files StandardCopyOption]))
 
-(defn read-home-html [{:keys [com.budgetswu/home-file]}]
+(defn home-file [{:keys [com.budgetswu/home-file]}]
   (let [file (io/file home-file)]
     (when (.exists file)
-      (slurp file))))
+      file)))
 
 (defn write-home-html [{:keys [com.budgetswu/home-file]} html]
   (let [target (io/file home-file)]
@@ -34,6 +34,6 @@
 
 (def module
   {:biff.fx/handlers
-   {:com.budgetswu.fx/read-home-html  read-home-html
+   {:com.budgetswu.fx/home-file       home-file
     :com.budgetswu.fx/write-home-html write-home-html
     :com.budgetswu.fx/log             log-message}})

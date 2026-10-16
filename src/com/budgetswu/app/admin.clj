@@ -13,6 +13,7 @@
 (defpath biff-admin "/_biff/admin")
 (defpath select-deck-path "/admin/select-deck")
 (defpath send-test-email-path "/admin/test-email")
+(defpath regenerate-home-path "/admin/regenerate-home")
 
 (defn- save-tab-state
   "Returns an effect that upserts the tab's admin state."
@@ -52,12 +53,14 @@
 (defpipeline admin-page
   [:biff.graph.fx/query
    [{:session/user [:user/email {:user/recommendations recommendations/fields}]}
-    {[:? :request/tab-state] [[:? :tab-state/admin-selected] [:? :tab-state/admin-status]]}]]
+    {[:? :request/tab-state] [[:? :tab-state/admin-selected]
+                              [:? :tab-state/admin-status]
+                              [:? :tab-state/home-status]]}]]
 
   (fn [request {:keys [session/user request/tab-state]}]
     (let [{:user/keys [email recommendations]} user
 
-          {:tab-state/keys [admin-selected admin-status]} tab-state]
+          {:tab-state/keys [admin-selected admin-status home-status]} tab-state]
       (ui/app-page
        request
        (ui/shell
@@ -73,6 +76,20 @@
                 :class ["font-semibold text-orange-700 underline-offset-4"
                         "hover:underline"]}
             "Open the dashboard"]])
+         (panel
+          {}
+          [:h2 {:class ["text-lg font-semibold"]} "Home page"]
+          [:p {:class ["mt-2 text-stone-600"]}
+           (str "The home page is a static file that the sync job writes. "
+                "This rewrites it from the current recommendations.")]
+          [:div {:class ["mt-4 flex flex-wrap items-center gap-4"]}
+           [:button {:type          "button"
+                     :data-action   (regenerate-home-path)
+                     :data-on:click "@post(el.dataset.action)"
+                     :class         ["rounded-md bg-orange-700 px-4 py-2 text-sm"
+                                     "font-semibold text-white hover:bg-orange-800"]}
+            "Regenerate home page"]
+           [:span {:class ["text-sm text-stone-600"]} home-status]])
          (panel
           {}
           [:h2 {:class ["text-lg font-semibold"]} "Test notification email"]
@@ -149,6 +166,24 @@
                                            (str "Sent to " (:to email) "."))})
      :status 204}))
 
+(defpipeline regenerate-home
+  [:biff.graph.fx/query
+   [{:global/recommendations recommendations/fields}
+    {[:? :request/tab-state] [:tab-state/id]}]]
+
+  (fn [{:keys [session] :as ctx} {:keys [global/recommendations request/tab-state]}]
+    (if tab-state
+      {:_home   [:com.budgetswu.fx/write-home-html
+                 (:body (recommendations/home-response ctx recommendations))]
+       :_status (save-tab-state
+                 (:tab-state/id tab-state)
+                 (:uid session)
+                 {:tab-state/home-status (str "Regenerated with "
+                                              (count recommendations)
+                                              " decks.")})
+       :status  204}
+      {:status 400})))
+
 ;;;; Biff dashboard ============================================================
 
 (defpipeline get-users
@@ -182,4 +217,5 @@
    ["" {:middleware [mid/wrap-signed-in mid/wrap-admin]}
     [(routes/admin)          {:get admin-page}]
     [(select-deck-path)      {:post select-deck}]
-    [(send-test-email-path)  {:post send-test-email}]]})
+    [(send-test-email-path)  {:post send-test-email}]
+    [(regenerate-home-path)  {:post regenerate-home}]]})

@@ -114,6 +114,7 @@ CREATE TABLE tab_state (
   admin_status TEXT,
   card_page INT,
   card_search TEXT,
+  home_status TEXT,
   user_id BLOB,
   FOREIGN KEY(user_id) REFERENCES user(id)
 ) STRICT;

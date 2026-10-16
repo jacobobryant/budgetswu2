@@ -40,7 +40,7 @@
   [(str "Decklists for Star Wars: Unlimited, recommended based on price, "
         "performance, and popularity. Sign in to get recommendations based on "
         "the cards you already own. ")
-   [:a {:href "https://obryant.dev/p/budgetswu"
+   [:a {:href  "https://obryant.dev/p/budgetswu"
         :class "text-orange-400 underline-offset-4 hover:underline"}
     "About"] "."])
 

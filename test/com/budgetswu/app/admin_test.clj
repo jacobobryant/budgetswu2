@@ -95,6 +95,19 @@
                  (get-in (save ctx (assoc result :response {:status 500}))
                          [:_ 1 :values 0 :tab-state/admin-status]))))))))
 
+(deftest regenerate-home
+  (let [[state] (admin/regenerate-home)
+
+        ctx    {:session {:uid uid}}
+        result (state ctx {:global/recommendations [(deck "a" "Luke") (deck "b" "Leia")]
+                           :request/tab-state      {:tab-state/id tab-id}})]
+    (is (= :com.budgetswu.fx/write-home-html (first (:_home result))))
+    (is (re-find #"Leia" (second (:_home result))))
+    (is (= (tab-state-write {:tab-state/home-status "Regenerated with 2 decks."})
+           (:_status result)))
+    (is (= 204 (:status result)))
+    (is (= {:status 400} (state ctx {:global/recommendations []})))))
+
 (deftest get-users
   (let [[state] (admin/get-users)
         now     #inst "2026-10-12T00:00:00Z"]

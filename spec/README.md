@@ -103,6 +103,7 @@ Since the page only changes whenever the 12-hour sync job runs, that job also
 renders html and writes it to a file. That file is served as the home page.
 There is a separate endpoint meant for development only that renders the page at
 request time from the recommended decklist primary keys stored by the sync job.
+The admin page can also regenerate the file from those stored keys.
 
 ## Personalized recommendations
 
@@ -206,6 +207,9 @@ The admin page has:
   decks. Sending it doesn't change the user's "last seen recommendation set",
   but it does record a notification (so the unsubscribe link works), which
   counts toward the once-per-24-hours limit.
+- A "Regenerate home page" button that rewrites the home page's html file from
+  the recommended decklists stored by the last sync, then shows "Regenerated
+  with N decks." next to the button.
 
 ## URLs
 

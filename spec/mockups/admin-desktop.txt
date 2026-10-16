@@ -9,6 +9,14 @@ Admin, desktop (>=640px wide), signed in as the admin
 | +----------------------------------------------------------------------+ |
 |                                                                          |
 | +----------------------------------------------------------------------+ |
+| | Home page                                                            | |
+| | The home page is a static file that the sync job writes. This        | |
+| | rewrites it from the current recommendations.                        | |
+| |                                                                      | |
+| | [Regenerate home page]  Regenerated with 12 decks.                   | |
+| +----------------------------------------------------------------------+ |
+|                                                                          |
+| +----------------------------------------------------------------------+ |
 | | Test notification email                                              | |
 | | Sends you@example.com a notification email listing the selected      | |
 | | decks as new. Your seen decks aren't changed.                        | |

@@ -5,13 +5,13 @@
             [com.budgetswu.routes :as routes]))
 
 (defpipeline home
-  [:com.budgetswu.fx/read-home-html]
+  [:com.budgetswu.fx/home-file]
 
-  (fn [ctx html]
-    (if html
+  (fn [ctx file]
+    (if file
       {:status  200
        :headers {"Content-Type" "text/html; charset=utf-8"}
-       :body    html}
+       :body    file}
       (recommendations/home-response ctx []))))
 
 (def module

@@ -15,6 +15,7 @@
    :tab-state/card-page      (s/int)
    :tab-state/admin-selected (s/edn [:set :string])
    :tab-state/admin-status   (s/text)
+   :tab-state/home-status    (s/text)
 
    :user/id                   s/pkey
    :user/email                (s/text :required :unique)
