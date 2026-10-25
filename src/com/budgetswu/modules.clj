@@ -18,11 +18,11 @@
             [com.budgetswu.lib.ui :as lib.ui]
             [com.budgetswu.model.recommendation :as model.recommendation]
             [com.budgetswu.model.session :as model.session]
-            [com.budgetswu.model.sqlite :as model.sqlite]
             [com.budgetswu.model.user :as model.user]
             [com.budgetswu.model.global :as model.global]
             [com.budgetswu.model.migration :as model.migration]
             [com.budgetswu.model.request :as model.request]
+            [com.budgetswu.schema :as schema]
             [com.budgetswu.work.sync :as work.sync]))
 
 (def modules
@@ -43,7 +43,10 @@
    model.migration/module
    (biff.sqlite/sqldef-module)
    (biff.sqlite/conn-module)
-   model.sqlite/module
+   (biff.sqlite/config-module
+    {:biff.sqlite/columns        schema/columns
+     :biff.sqlite/extra-init-sql schema/extra-init-sql
+     :biff.sqlite/authorize      #'schema/authorize})
    model.global/module
    model.request/module
    work.sync/module

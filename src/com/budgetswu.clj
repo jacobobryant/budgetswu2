@@ -14,7 +14,8 @@
 (defn start []
   (reset! system (biff.core/start #'modules start-order))
   (spit "graph.mmd" (biff.graph/uml {:biff.graph/resolvers
-                                     (mapcat :biff.graph/resolvers modules)})))
+                                     (mapcat :biff.graph/resolvers modules)}))
+  :started)
 
 (defn stop []
   (biff.core/stop @system)
@@ -22,7 +23,8 @@
   :stopped)
 
 (defn -main [& _args]
-  (let [{:biff.tasks/keys [nrepl-port]} (start)]
+  (start)
+  (let [{:biff.tasks/keys [nrepl-port]} @system]
     (.addShutdownHook (Runtime/getRuntime) (Thread. #'stop))
     (nrepl/-main "--port" nrepl-port
                  "--middleware" (pr-str '[cider.nrepl/cider-middleware]))))
