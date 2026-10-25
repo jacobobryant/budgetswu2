@@ -1,7 +1,8 @@
 (ns com.budgetswu.model.recommendation
   "A recommendation is a decklist as recommended to a user, or to everyone when
   :recommendation/user is absent. Recommendation IDs are decklist IDs."
-  (:require [com.biffweb.graph :refer [defresolver]]))
+  (:require [com.biffweb.graph :refer [defresolver]]
+            [tick.core :as tick]))
 
 (def min-deck-size 50)
 
@@ -105,6 +106,27 @@
                 {}))
             inputs))))
 
+(defresolver label
+  {:input  [:recommendation/id :?recommendation/leader-name :?recommendation/base-name]
+   :output [:recommendation/label]}
+  [_ {:recommendation/keys [leader-name base-name]}]
+  {:recommendation/label (str (or leader-name "Unknown leader") " / "
+                              (or base-name "Unknown base"))})
+
+(defresolver melee-url
+  {:input  [:recommendation/melee-id]
+   :output [:recommendation/melee-url]}
+  [_ {:recommendation/keys [melee-id]}]
+  {:recommendation/melee-url (str "https://melee.gg/Decklist/View/" melee-id)})
+
+;; The UTC date of the tournament's start time.
+(defresolver tournament-day
+  {:input  [:recommendation/tournament-date]
+   :output [:recommendation/tournament-day]}
+  [_ {:recommendation/keys [tournament-date]}]
+  {:recommendation/tournament-day
+   (-> tournament-date tick/instant (tick/in "UTC") tick/date str)})
+
 (defresolver popularity
   {:input  [:recommendation/id]
    :output [:recommendation/archetype-frequency
@@ -172,4 +194,4 @@
   {:recommendation/eligible (<= min-deck-size card-count)})
 
 (def module
-  {:biff.graph/resolvers [details popularity prices eligible]})
+  {:biff.graph/resolvers [details label melee-url tournament-day popularity prices eligible]})

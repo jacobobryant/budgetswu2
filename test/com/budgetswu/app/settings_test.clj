@@ -7,12 +7,14 @@
 
         uid     #uuid "00000000-0000-0000-0000-000000000001"
         now     #inst "2026-10-12T00:00:00Z"
-        ctx     {:session {:uid uid} :biff.fx/now now}
+        ctx     {:biff.fx/now now}
         written (fn [value]
                   {:_      [:biff.sqlite.fx/authorized-write
                             {:update :user
                              :set    {:user/unsubscribed-at value}
                              :where  [:= :user/id uid]}]
                    :status 204})]
-    (is (= (written now) (state ctx {:request/email-notifications false})))
-    (is (= (written nil) (state ctx {:request/email-notifications true})))))
+    (is (= (written now) (state ctx {:session/user                {:user/id uid}
+                                     :request/email-notifications false})))
+    (is (= (written nil) (state ctx {:session/user                {:user/id uid}
+                                     :request/email-notifications true})))))

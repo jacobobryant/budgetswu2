@@ -22,6 +22,11 @@
   (fn [_ rows]
     {:global/sync-states rows}))
 
+(defresolver sync-job
+  {:output [{:global/sync-job [:sync-state/id]}]}
+  [_ _]
+  {:global/sync-job {:sync-state/id "job"}})
+
 (defresolver metas
   {:output [{:global/metas [:meta/id :meta/is-current]}]}
 
@@ -119,7 +124,12 @@
      (mapv (fn [row] {:recommendation/id (:decklist/id row)}) rows)}))
 
 (defresolver front
-  {:input  [{:global/current-recommendations recommendations/candidate-fields}]
+  {:input  [{:global/current-recommendations
+             [:recommendation/id
+              :?recommendation/eligible
+              :?recommendation/price-cents
+              :?recommendation/percentile
+              :?recommendation/archetype-frequency]}]
    :output [{:global/front [:recommendation/id]}]}
   [_ {:global/keys [current-recommendations]}]
   {:global/front
@@ -179,7 +189,8 @@
                        :from   :notification
                        :where  [:and
                                 [:= :notification/user-id :user/id]
-                                [:> :notification/created-at
+                                [:>
+                                 :notification/created-at
                                  (tick/<< now notification-interval)]]}]]]}])
 
   (fn [_ rows]
@@ -188,6 +199,7 @@
 (def module
   {:biff.graph/resolvers
    [sync-states
+    sync-job
     metas
     tournaments
     recent-tournaments

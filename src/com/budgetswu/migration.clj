@@ -1,8 +1,8 @@
-(ns com.budgetswu.model.migration
-  "Migrations for schema changes sqldef can't make on its own, such as adding
-  foreign keys to existing SQLite tables. The DB's user_version is the number
-  of migrations applied. Each migration hardcodes the tables it rebuilds; sqldef
-  handles any later changes."
+(ns com.budgetswu.migration
+  "Migrations for schema and data changes sqldef can't make on its own, such as
+  adding foreign keys to existing SQLite tables. The DB's user_version is the
+  number of migrations applied. Each migration hardcodes the tables it rebuilds;
+  sqldef handles any later changes."
   (:require [clojure.java.io :as io]
             [clojure.string :as str]
             [clojure.tools.logging :as log]
@@ -94,7 +94,12 @@
       user_id BLOB NOT NULL,
       FOREIGN KEY(card_id) REFERENCES card(id),
       FOREIGN KEY(user_id) REFERENCES user(id),
-      UNIQUE(user_id, card_id)"}}])
+      UNIQUE(user_id, card_id)"}}
+
+   ;; 2: Owned cards with a quantity of 0 are deleted, since setting a card's
+   ;; quantity to 0 now deletes its row.
+   {:cleanup ["DELETE FROM owned_card WHERE quantity = 0"]
+    :rebuild {}}])
 
 (defn- user-version [conn]
   (-> (jdbc/execute-one! conn ["PRAGMA user_version"]) vals first))

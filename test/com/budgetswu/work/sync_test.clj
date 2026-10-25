@@ -4,7 +4,6 @@
             [clojure.tools.logging :as log]
             [com.budgetswu.lib.email :as email]
             [com.budgetswu.lib.notification-test :refer [deck]]
-            [com.budgetswu.lib.recommendations :as recommendations]
             [com.budgetswu.work.sync :as sync]
             [tick.core :as tick]))
 
@@ -476,8 +475,8 @@
 
 (deftest sync-job-recommendations
   (let [{:keys [fetch-recommendations save-recommendations notify enqueue-notifications]} states]
-    (is (= [:biff.graph.fx/query [{:global/front recommendations/fields}]]
-           (:graph (fetch-recommendations ctx {}))))
+    (is (= :global/front
+           (-> (fetch-recommendations ctx {}) :graph second first keys first)))
     (let [result (save-recommendations ctx {:graph {:global/front [(deck "a" "Luke")
                                                                    (deck "b" "Leia")]}})]
       (is (= [{:delete-from :recommendation}
@@ -516,9 +515,7 @@
                     log/log*      (fn [_ level t _]
                                     (reset! logged [level (ex-message t)]))]
         (sync/run-sync {:biff.background/job {}})
-        (is (= [:error "boom"] @logged)))))
-  (is (= [:biff.background.fx/submit-jobs ::sync/sync [{:requested-at now}]]
-         (sync/request-sync {:requested-at now}))))
+        (is (= [:error "boom"] @logged))))))
 
 (def token #uuid "00000000-0000-0000-0000-000000000009")
 

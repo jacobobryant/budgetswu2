@@ -9,7 +9,20 @@
   (fn [ctx]
     (if (:com.budgetswu/dev-mode ctx)
       [:biff.graph.fx/query
-       [{:global/recommendations recommendations/fields}]]
+       [{:global/recommendations
+         [:recommendation/id
+          :?recommendation/melee-url
+          :?recommendation/leader-name
+          :?recommendation/base-name
+          :?recommendation/player-name
+          :recommendation/tournament-name
+          :recommendation/tournament-day
+          :recommendation/player-count
+          :recommendation/placement
+          :recommendation/price-cents
+          :recommendation/full-price-cents
+          :recommendation/popularity-rank
+          :recommendation/archetype-count]}]]
       {:biff.fx/return {:status 404 :body "Not found"}}))
 
   (fn [ctx {:keys [global/recommendations]}]

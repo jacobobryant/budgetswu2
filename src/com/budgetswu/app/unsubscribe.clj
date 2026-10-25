@@ -57,18 +57,16 @@
 ;; The token in the link stands in for signing in, so this write can't go
 ;; through the session-based authorization rules.
 (defpipeline unsubscribe
-  [:biff.graph.fx/query [{:?request/notification [{:notification/user [:user/id]}]}]]
+  [:biff.graph.fx/query [{:request/notification [{:notification/user [:user/id]}]}]]
 
   (fn [{:biff.fx/keys [now]} {:keys [request/notification]}]
-    (if-some [user-id (get-in notification [:notification/user :user/id])]
-      {:_      [:biff.sqlite.fx/execute
-                {:update :user
-                 :set    {:user/unsubscribed-at now}
-                 :where  [:and
-                          [:= :user/id user-id]
-                          [:= :user/unsubscribed-at nil]]}]
-       :status 204}
-      {:status 404})))
+    {:_      [:biff.sqlite.fx/execute
+              {:update :user
+               :set    {:user/unsubscribed-at now}
+               :where  [:and
+                        [:= :user/id (get-in notification [:notification/user :user/id])]
+                        [:= :user/unsubscribed-at nil]]}]
+     :status 204}))
 
 (def module
   {:biff.ring/routes

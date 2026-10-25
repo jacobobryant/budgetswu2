@@ -6,14 +6,11 @@
             [com.budgetswu.routes :as routes]
             [dev.onionpancakes.chassis.core :as chassis]))
 
-(defn decklist-label [{:recommendation/keys [leader-name base-name]}]
-  (str (or leader-name "Unknown leader") " / " (or base-name "Unknown base")))
-
 (defn subject
   "`new-decks` are in the order shown on the Decks page; the subject names the
   first one."
   [new-decks]
-  (let [label  (decklist-label (first new-decks))
+  (let [label  (:recommendation/label (first new-decks))
         others (dec (count new-decks))]
     (case others
       0 (str "New deck: " label)
@@ -22,20 +19,27 @@
 
 (defn- deck-lines
   "The website's deck card as plain-text lines."
-  [rank {:recommendation/keys [melee-id player-name tournament-name tournament-date
-                               player-count placement price-cents
-                               full-price-cents popularity-rank archetype-count]
-         :as                  deck}]
-  (cond-> [(str rank ". " (decklist-label deck))
+  [rank {:recommendation/keys [label
+                               melee-url
+                               player-name
+                               tournament-name
+                               tournament-day
+                               player-count
+                               placement
+                               price-cents
+                               full-price-cents
+                               popularity-rank
+                               archetype-count]}]
+  (cond-> [(str rank ". " label)
            (str "   " (or player-name "Unknown player") " · "
                 (or tournament-name "Unknown tournament") " · "
-                (recommendations/day tournament-date))
+                tournament-day)
            (str "   Your cost: " (recommendations/money price-cents)
                 (when (not= price-cents full-price-cents)
                   (str " (full " (recommendations/money full-price-cents) ")"))
                 " · Placed " placement " of " player-count
                 " · Popularity #" popularity-rank " of " archetype-count)]
-    melee-id (conj (str "   " (recommendations/melee-url melee-id)))))
+    melee-url (conj (str "   " melee-url))))
 
 (def ^:private email-styles
   {:body  "margin:0;padding:24px 12px;background:#1c1917;font-family:Arial,sans-serif"
@@ -67,10 +71,18 @@
 
 (defn- email-deck
   "The website's deck card, with inline styles for email clients."
-  [rank {:recommendation/keys [melee-id leader-name base-name player-name
-                               tournament-name tournament-date player-count
-                               placement price-cents full-price-cents
-                               popularity-rank archetype-count]}]
+  [rank {:recommendation/keys [melee-url
+                               leader-name
+                               base-name
+                               player-name
+                               tournament-name
+                               tournament-day
+                               player-count
+                               placement
+                               price-cents
+                               full-price-cents
+                               popularity-rank
+                               archetype-count]}]
   [:div {:style (:card email-styles)}
    [:p {:style (:title email-styles)}
     [:span {:style (:rank email-styles)} (str rank ". ")]
@@ -79,7 +91,7 @@
    [:p {:style (:meta email-styles)}
     (str (or player-name "Unknown player") " · "
          (or tournament-name "Unknown tournament") " · "
-         (recommendations/day tournament-date))]
+         tournament-day)]
    [:table {:width "100%" :cellspacing "6" :cellpadding "0" :style "margin:8px -6px 0"}
     [:tr
      (email-stat "YOUR COST" (:price email-styles) (recommendations/money price-cents)
@@ -88,9 +100,9 @@
      (email-stat "PLACED" (:value email-styles) (str placement " of " player-count))
      (email-stat "POPULARITY" (:value email-styles)
                  (str "#" popularity-rank " of " archetype-count))]]
-   (when melee-id
+   (when melee-url
      [:p {:style "margin:12px 0 0"}
-      [:a {:href (recommendations/melee-url melee-id) :style (:link email-styles)}
+      [:a {:href melee-url :style (:link email-styles)}
        "View decklist on melee.gg"]])])
 
 (defn email

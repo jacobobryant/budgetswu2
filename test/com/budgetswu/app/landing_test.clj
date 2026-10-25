@@ -1,9 +1,9 @@
-(ns com.budgetswu.lib.middleware-test
+(ns com.budgetswu.app.landing-test
   (:require [clojure.test :refer [deftest is]]
-            [com.budgetswu.lib.middleware :as mid]))
+            [com.budgetswu.app.landing :as landing]))
 
 (deftest wrap-redirect-signed-in
-  (let [handler (mid/wrap-redirect-signed-in (constantly {:status 200}))]
+  (let [handler (landing/wrap-redirect-signed-in (constantly {:status 200}))]
     (is (= {:status 200} (handler {:session {}})))
     (is (= {:status 303 :headers {"location" "/app"}}
            (handler {:session {:uid 1}})))

@@ -15,5 +15,4 @@
                                [:= :user/unsubscribed-at nil]]}]
             :status 204}
            (state {:biff.fx/now now}
-                  {:request/notification {:notification/user {:user/id uid}}})))
-    (is (= {:status 404} (state {:biff.fx/now now} {})))))
+                  {:request/notification {:notification/user {:user/id uid}}})))))

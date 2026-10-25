@@ -10,7 +10,6 @@
             [com.budgetswu.lib.recommendations :as recommendations]
             [com.budgetswu.lib.ui :as ui]
             [com.budgetswu.routes :as routes]
-            [com.budgetswu.work.sync :as sync]
             [tick.core :as tick]))
 
 (defpath biff-admin "/_biff/admin")
@@ -35,8 +34,7 @@
                          attrs)]
         content))
 
-(defn- deck-option [selected i {:recommendation/keys [id price-cents tournament-date]
-                                :as                  deck}]
+(defn- deck-option [selected i {:recommendation/keys [id label price-cents tournament-day]}]
   (let [checked (contains? selected id)]
     [:li
      [:label {:class ["flex cursor-pointer items-start gap-3 rounded-md px-2 py-2"
@@ -49,10 +47,9 @@
       [:span {:class ["min-w-0"]}
        [:span {:class ["block font-medium"]}
         [:span {:class ["text-stone-400"]} (str (inc i) ". ")]
-        (notification/decklist-label deck)]
+        label]
        [:span {:class ["block text-sm text-stone-500"]}
-        (str "Your cost " (recommendations/money price-cents) " · "
-             (recommendations/day tournament-date))]]]]))
+        (str "Your cost " (recommendations/money price-cents) " · " tournament-day)]]]]))
 
 (defn- timestamp [s]
   (some-> s tick/instant (tick/in "UTC") tick/date-time (tick/truncate :minutes)
@@ -60,10 +57,14 @@
 
 (defpipeline admin-page
   [:biff.graph.fx/query
-   [{:session/user [:user/email {:user/recommendations recommendations/fields}]}
-    {:global/sync-states [:sync-state/id :?sync-state/completed-at]}
+   [{:session/user [:user/email
+                    {:user/recommendations [:recommendation/id
+                                            :recommendation/label
+                                            :recommendation/price-cents
+                                            :recommendation/tournament-day]}]}
+    {:global/sync-job [:?sync-state/completed-at]}
     {:global/recent-tournaments [:tournament/name
-                                 :tournament/held-at
+                                 :tournament/held-on
                                  :?tournament/player-count]}
     {:?request/tab-state [:?tab-state/admin-selected
                           :?tab-state/admin-status
@@ -71,12 +72,12 @@
                           :?tab-state/sync-status]}]]
 
   (fn [request {:keys        [session/user request/tab-state]
-                :global/keys [sync-states recent-tournaments]}]
+                :global/keys [sync-job recent-tournaments]}]
     (let [{:user/keys [email recommendations]} user
 
           {:tab-state/keys [admin-selected admin-status home-status sync-status]} tab-state
 
-          completed-at (sync/state-value sync-states "job" :sync-state/completed-at)]
+          completed-at (:sync-state/completed-at sync-job)]
       (ui/app-page
        request
        (ui/shell
@@ -110,11 +111,11 @@
           [:h3 {:class ["mt-5 font-semibold"]} "Most recent tournaments"]
           (if (seq recent-tournaments)
             [:ul {:class ["mt-2 grid gap-1 text-sm"]}
-             (mapv (fn [{:tournament/keys [held-at player-count] :as tournament}]
+             (mapv (fn [{:tournament/keys [held-on player-count] :as tournament}]
                      [:li
                       [:span {:class ["font-medium"]} (:tournament/name tournament)]
                       [:span {:class ["text-stone-500"]}
-                       (str " · " (recommendations/day held-at)
+                       (str " · " held-on
                             (when player-count (str " · " player-count " players")))]])
                    recent-tournaments)]
             [:p {:class ["mt-2 text-sm text-stone-500"]} "No tournaments yet."]))
@@ -158,15 +159,16 @@
 
 (defpipeline select-deck
   [:biff.graph.fx/query
-   [{:request/decklist [:decklist/id]}
+   [{:session/user [:user/id]}
+    {:request/decklist [:decklist/id]}
     :request/selected
     {:request/tab-state [:tab-state/id :?tab-state/admin-selected]}]]
 
-  (fn [{:keys [session]} {:keys [request/decklist request/selected request/tab-state]}]
+  (fn [_ {:keys [session/user request/decklist request/selected request/tab-state]}]
     (let [{:tab-state/keys [id admin-selected]} tab-state]
       {:_      (save-tab-state
                 id
-                (:uid session)
+                (:user/id user)
                 {:tab-state/admin-selected [:lift ((if selected conj disj)
                                                    (set admin-selected)
                                                    (:decklist/id decklist))]
@@ -175,7 +177,22 @@
 
 (defpipeline send-test-email
   [:biff.graph.fx/query
-   [{:session/user [:user/id :user/email {:user/recommendations recommendations/fields}]}
+   [{:session/user [:user/id
+                    :user/email
+                    {:user/recommendations [:recommendation/id
+                                            :recommendation/label
+                                            :?recommendation/melee-url
+                                            :?recommendation/leader-name
+                                            :?recommendation/base-name
+                                            :?recommendation/player-name
+                                            :recommendation/tournament-name
+                                            :recommendation/tournament-day
+                                            :recommendation/player-count
+                                            :recommendation/placement
+                                            :recommendation/price-cents
+                                            :recommendation/full-price-cents
+                                            :recommendation/popularity-rank
+                                            :recommendation/archetype-count]}]}
     {:request/tab-state [:tab-state/id :?tab-state/admin-selected]}]]
 
   (fn [{:biff.fx/keys [random-uuid4-seq] :as ctx}
@@ -208,28 +225,45 @@
 
 (defpipeline regenerate-home
   [:biff.graph.fx/query
-   [{:global/recommendations recommendations/fields}
+   [{:session/user [:user/id]}
+    {:global/recommendations
+     [:recommendation/id
+      :?recommendation/melee-url
+      :?recommendation/leader-name
+      :?recommendation/base-name
+      :?recommendation/player-name
+      :recommendation/tournament-name
+      :recommendation/tournament-day
+      :recommendation/player-count
+      :recommendation/placement
+      :recommendation/price-cents
+      :recommendation/full-price-cents
+      :recommendation/popularity-rank
+      :recommendation/archetype-count]}
     {:request/tab-state [:tab-state/id]}]]
 
-  (fn [{:keys [session] :as ctx} {:keys [global/recommendations request/tab-state]}]
+  (fn [ctx {:keys [session/user global/recommendations request/tab-state]}]
     {:_home   [:com.budgetswu.fx/write-home-html
                (:body (recommendations/home-response ctx recommendations))]
      :_status (save-tab-state
                (:tab-state/id tab-state)
-               (:uid session)
+               (:user/id user)
                {:tab-state/home-status (str "Regenerated with "
                                             (count recommendations)
                                             " decks.")})
      :status  204}))
 
 (defpipeline request-sync
-  [:biff.graph.fx/query [{:request/tab-state [:tab-state/id]}]]
+  [:biff.graph.fx/query [{:session/user [:user/id]} {:request/tab-state [:tab-state/id]}]]
 
-  (fn [{:keys [session] :biff.fx/keys [now]} {:keys [request/tab-state]}]
-    {:_       (sync/request-sync {:requested-at now})
+  ;; With :requested-at, the sync runs even if it isn't due.
+  (fn [{:biff.fx/keys [now]} {:keys [session/user request/tab-state]}]
+    {:_       [:biff.background.fx/submit-jobs
+               :com.budgetswu.work.sync/sync
+               [{:requested-at now}]]
      :_status (save-tab-state
                (:tab-state/id tab-state)
-               (:uid session)
+               (:user/id user)
                {:tab-state/sync-status "Sync started."})
      :status  204}))
 
@@ -261,9 +295,20 @@
     :biff.admin/get-users          #'get-users
     :biff.admin/send-email         #'email/send-email}))
 
+;;;; Routes ==================================================================
+
+(defn wrap-admin
+  "Shows everyone but the admin the usual not-found page, so the page's
+  existence isn't revealed."
+  [handler]
+  (fn [ctx]
+    (if (ui/admin? ctx)
+      (handler ctx)
+      (ui/on-error (assoc ctx :status 404)))))
+
 (def page-module
   {:biff.ring/routes
-   ["" {:middleware [mid/wrap-signed-in mid/wrap-admin]}
+   ["" {:middleware [mid/wrap-signed-in wrap-admin]}
     [(routes/admin)          {:get admin-page}]
     [(select-deck-path)      {:post select-deck}]
     [(send-test-email-path)  {:post send-test-email}]

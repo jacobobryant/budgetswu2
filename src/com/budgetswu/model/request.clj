@@ -244,7 +244,7 @@
 (defresolver card-search
   {:output [:request/card-search]}
   [{:keys [biff.datastar/signals]} _]
-  (let [s (:tab/card-search signals)]
+  (let [s (:com.budgetswu/card-search signals)]
     (when (string? s)
       {:request/card-search (subs s 0 (min (count s) schema/max-search-length))})))
 
@@ -254,14 +254,15 @@
   {:output [{:request/notification [:notification/id]}]}
 
   (fn [{:keys [path-params] :biff.fx/keys [now]} _]
-    (let [token (:token path-params)]
+    (let [token (:notification-token path-params)]
       (if (uuid? token)
         [:biff.sqlite.fx/execute
          {:select [:notification/id]
           :from   :notification
           :where  [:and
                    [:= :notification/token token]
-                   [:>= :notification/created-at
+                   [:>=
+                    :notification/created-at
                     (tick/<< now (tick/new-duration unsubscribe-link-days :days))]]}]
         {:biff.fx/return {}})))
 

@@ -3,52 +3,25 @@
             [com.budgetswu.lib.pareto :as pareto]
             [com.budgetswu.lib.recommendations :as recommendations]))
 
-(defresolver owned-cards
-  {:input  [:user/id]
-   :output [{:user/owned-cards
-             [:owned-card/id :owned-card/card-id :owned-card/quantity]}]
-   :batch  true}
-
-  (fn [_ inputs]
-    {:inputs inputs
-     :rows   [:biff.sqlite.fx/execute
-              {:select [:owned-card/id
-                        :owned-card/user-id
-                        :owned-card/card-id
-                        :owned-card/quantity]
-               :from   :owned-card
-               :where  [:and
-                        [:in :owned-card/user-id (mapv :user/id inputs)]
-                        [:> :owned-card/quantity 0]]}]})
-
-  (fn [_ {:keys [inputs rows]}]
-    (let [by-user (group-by :owned-card/user-id rows)]
-      (mapv (fn [{:user/keys [id]}]
-              {:user/owned-cards
-               (mapv #(dissoc % :owned-card/user-id) (get by-user id []))})
-            inputs))))
-
 (defresolver recommendation-candidates
-  {:input  [:user/id]
+  {:input  [:user/id {:global/current-recommendations [:recommendation/id]}]
    :output [{:user/recommendation-candidates
              [:recommendation/id {:recommendation/user [:user/id]}]}]
    :batch  true}
-
-  (fn [_ inputs]
-    {:inputs inputs
-     :global [:biff.graph.fx/query
-              [{:global/current-recommendations [:recommendation/id]}]]})
-
-  (fn [_ {:keys [inputs global]}]
-    (mapv (fn [{:user/keys [id]}]
-            {:user/recommendation-candidates
-             (mapv #(assoc % :recommendation/user {:user/id id})
-                   (:global/current-recommendations global))})
-          inputs)))
+  [_ inputs]
+  (mapv (fn [{:user/keys [id] :global/keys [current-recommendations]}]
+          {:user/recommendation-candidates
+           (mapv #(assoc % :recommendation/user {:user/id id}) current-recommendations)})
+        inputs))
 
 (defresolver recommendations
   {:input  [{:user/recommendation-candidates
-             (conj recommendations/candidate-fields {:recommendation/user [:user/id]})}]
+             [:recommendation/id
+              {:recommendation/user [:user/id]}
+              :?recommendation/eligible
+              :?recommendation/price-cents
+              :?recommendation/percentile
+              :?recommendation/archetype-frequency]}]
    :output [{:user/recommendations
              [:recommendation/id {:recommendation/user [:user/id]}]}]
    :batch  true}
@@ -61,4 +34,4 @@
         inputs))
 
 (def module
-  {:biff.graph/resolvers [owned-cards recommendation-candidates recommendations]})
+  {:biff.graph/resolvers [recommendation-candidates recommendations]})

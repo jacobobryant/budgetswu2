@@ -19,7 +19,19 @@
   [:biff.graph.fx/query
    [{:session/user [:user/id
                     :?user/seen-recommendations
-                    {:user/recommendations recommendations/fields}
+                    {:user/recommendations [:recommendation/id
+                                            :?recommendation/melee-url
+                                            :?recommendation/leader-name
+                                            :?recommendation/base-name
+                                            :?recommendation/player-name
+                                            :recommendation/tournament-name
+                                            :recommendation/tournament-day
+                                            :recommendation/player-count
+                                            :recommendation/placement
+                                            :recommendation/price-cents
+                                            :recommendation/full-price-cents
+                                            :recommendation/popularity-rank
+                                            :recommendation/archetype-count]}
                     {:user/owned-cards [:owned-card/id]}]}]]
 
   (fn [request {:keys [session/user]}]

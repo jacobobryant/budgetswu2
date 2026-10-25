@@ -16,12 +16,13 @@
             [com.budgetswu.app.unsubscribe :as app.unsubscribe]
             [com.budgetswu.fx :as fx]
             [com.budgetswu.lib.ui :as lib.ui]
-            [com.budgetswu.model.recommendation :as model.recommendation]
-            [com.budgetswu.model.session :as model.session]
-            [com.budgetswu.model.user :as model.user]
+            [com.budgetswu.migration :as migration]
             [com.budgetswu.model.global :as model.global]
-            [com.budgetswu.model.migration :as model.migration]
+            [com.budgetswu.model.recommendation :as model.recommendation]
             [com.budgetswu.model.request :as model.request]
+            [com.budgetswu.model.session :as model.session]
+            [com.budgetswu.model.tournament :as model.tournament]
+            [com.budgetswu.model.user :as model.user]
             [com.budgetswu.schema :as schema]
             [com.budgetswu.work.sync :as work.sync]))
 
@@ -39,8 +40,9 @@
    model.session/module
    model.user/module
    model.recommendation/module
+   model.tournament/module
    (biff.sqlite/litestream-module)
-   model.migration/module
+   migration/module
    (biff.sqlite/sqldef-module)
    (biff.sqlite/conn-module)
    (biff.sqlite/config-module
@@ -64,7 +66,7 @@
 (def start-order
   [:biff.config/module
    :biff.sqlite/litestream-module
-   :com.budgetswu.model.migration/module
+   :com.budgetswu.migration/module
    :biff.sqlite/sqldef-module
    :biff.sqlite/conn-module
    :biff.admin/module

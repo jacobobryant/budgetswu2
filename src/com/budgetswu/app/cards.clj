@@ -34,7 +34,7 @@
 
 (defn- icon
   "An inline 16x16 stroked SVG icon drawn with `paths`."
-  [class & paths]
+  [classes & paths]
   (into [:svg {:xmlns           "http://www.w3.org/2000/svg"
                :viewBox         "0 0 16 16"
                :fill            "none"
@@ -43,7 +43,7 @@
                :stroke-linecap  "round"
                :stroke-linejoin "round"
                :aria-hidden     "true"
-               :class           (into ["inline-block h-4 w-4 shrink-0"] class)}]
+               :class           (into ["inline-block h-4 w-4 shrink-0"] classes)}]
         (mapv (fn [d] [:path {:d d}]) paths)))
 
 (defn- external-link-icon []
@@ -52,8 +52,8 @@
         "M9.5 3H13v3.5"
         "M13 3 7.5 8.5"))
 
-(defn- search-icon [class]
-  (icon class "M7 12A5 5 0 1 0 7 2a5 5 0 0 0 0 10Z" "m13.5 13.5-3-3"))
+(defn- search-icon [classes]
+  (icon classes "M7 12A5 5 0 1 0 7 2a5 5 0 0 0 0 10Z" "m13.5 13.5-3-3"))
 
 (defn- arrow-left-icon []
   (icon [] "M13 8H3" "M7 4 3 8l4 4"))
@@ -94,7 +94,7 @@
   []
   [:div {:role                    "search"
          :class                   ["relative mb-4"]
-         :data-signals__ifmissing (biff.datastar/signals-json {:tab/card-search ""})}
+         :data-signals__ifmissing (biff.datastar/signals-json {:com.budgetswu/card-search ""})}
    [:label {:for "card-search" :class ["sr-only"]} "Search cards"]
    (search-icon ["pointer-events-none absolute left-3 top-1/2 -translate-y-1/2"
                  "text-stone-400"])
@@ -103,7 +103,7 @@
             :placeholder                   "Search cards"
             :autocomplete                  "off"
             :maxlength                     (str schema/max-search-length)
-            :data-bind                     (signal-name :tab/card-search)
+            :data-bind                     (signal-name :com.budgetswu/card-search)
             :data-action                   (set-search-path)
             :data-on:input__debounce.200ms "@post(el.dataset.action)"
             :class                         ["w-full rounded-md border-0"
@@ -125,9 +125,9 @@
                                   "disabled:text-stone-500"]}]
         content))
 
-(defn- pagination [class {:card-page/keys [number page-count]}]
+(defn- pagination [classes {:card-page/keys [number page-count]}]
   (when (pos? page-count)
-    [:nav {:class (into ["flex items-center justify-between gap-4"] class)}
+    [:nav {:class (into ["flex items-center justify-between gap-4"] classes)}
      (page-button (dec number) (< 1 number) (arrow-left-icon) "Previous")
      [:span {:class ["text-sm text-stone-300"]}
       (str "Page " number " of " page-count)]
@@ -183,31 +183,38 @@
 
 ;;;; Actions ===================================================================
 
+;; Cards with a quantity of 0 have no row, so a user's owned cards are the ones
+;; they have at least one copy of.
 (defpipeline set-quantity
-  [:biff.graph.fx/query [{:request/card [:card/id]} :request/quantity]]
+  [:biff.graph.fx/query [{:session/user [:user/id]} {:request/card [:card/id]} :request/quantity]]
 
-  (fn [{:keys [session] :biff.fx/keys [random-uuid7-seq]}
-       {:keys [request/card request/quantity]}]
+  (fn [{:biff.fx/keys [random-uuid7-seq]} {:keys [session/user request/card request/quantity]}]
     {:_      [:biff.sqlite.fx/authorized-write
-              {:insert-into   :owned-card
-               :values        [{:owned-card/id       (first random-uuid7-seq)
-                                :owned-card/user-id  (:uid session)
-                                :owned-card/card-id  (:card/id card)
-                                :owned-card/quantity quantity}]
-               :on-conflict   [:owned-card/user-id :owned-card/card-id]
-               :do-update-set [:owned-card/quantity]}]
+              (if (zero? quantity)
+                {:delete-from :owned-card
+                 :where       [:and
+                               [:= :owned-card/user-id (:user/id user)]
+                               [:= :owned-card/card-id (:card/id card)]]}
+                {:insert-into   :owned-card
+                 :values        [{:owned-card/id       (first random-uuid7-seq)
+                                  :owned-card/user-id  (:user/id user)
+                                  :owned-card/card-id  (:card/id card)
+                                  :owned-card/quantity quantity}]
+                 :on-conflict   [:owned-card/user-id :owned-card/card-id]
+                 :do-update-set [:owned-card/quantity]})]
      :status 204}))
 
 ;; Search and page live in tab state so that rerenders (e.g. after setting a
 ;; card count) keep showing the same results.
 (defpipeline set-search
-  [:biff.graph.fx/query [{:request/tab-state [:tab-state/id]} :request/card-search]]
+  [:biff.graph.fx/query
+   [{:session/user [:user/id]} {:request/tab-state [:tab-state/id]} :request/card-search]]
 
-  (fn [{:keys [session]} {:keys [request/tab-state request/card-search]}]
+  (fn [_ {:keys [session/user request/tab-state request/card-search]}]
     {:_      [:biff.sqlite.fx/authorized-write
               {:insert-into   :tab-state
                :values        [{:tab-state/id          (:tab-state/id tab-state)
-                                :tab-state/user-id     (:uid session)
+                                :tab-state/user-id     (:user/id user)
                                 :tab-state/card-search card-search
                                 :tab-state/card-page   1}]
                :on-conflict   [:tab-state/id]
@@ -215,13 +222,14 @@
      :status 204}))
 
 (defpipeline set-page
-  [:biff.graph.fx/query [{:request/tab-state [:tab-state/id]} :request/page]]
+  [:biff.graph.fx/query
+   [{:session/user [:user/id]} {:request/tab-state [:tab-state/id]} :request/page]]
 
-  (fn [{:keys [session]} {:keys [request/tab-state request/page]}]
+  (fn [_ {:keys [session/user request/tab-state request/page]}]
     {:_      [:biff.sqlite.fx/authorized-write
               {:insert-into   :tab-state
                :values        [{:tab-state/id        (:tab-state/id tab-state)
-                                :tab-state/user-id   (:uid session)
+                                :tab-state/user-id   (:user/id user)
                                 :tab-state/card-page page}]
                :on-conflict   [:tab-state/id]
                :do-update-set [:tab-state/card-page]}]

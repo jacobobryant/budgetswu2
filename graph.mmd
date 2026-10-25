@@ -7,12 +7,20 @@ classDiagram
   }
   class card-set {
     card-set/id
+    card-set/metas
     card-set/number
+    card-set/printings
     card-set/published-on
   }
   class card {
+    card/aspects
+    card/base-decklists
+    card/deck-cards
     card/id
+    card/leader-decklists
+    card/owned-cards
     card/price-cents
+    card/printings
     card/type
   }
   class deck-card {
@@ -26,6 +34,7 @@ classDiagram
   class decklist {
     decklist/base
     decklist/base-id
+    decklist/deck-cards
     decklist/format
     decklist/id
     decklist/leader
@@ -76,8 +85,10 @@ classDiagram
     recommendation/eligible
     recommendation/full-price-cents
     recommendation/id
+    recommendation/label
     recommendation/leader-name
     recommendation/melee-id
+    recommendation/melee-url
     recommendation/percentile
     recommendation/placement
     recommendation/player-count
@@ -86,6 +97,7 @@ classDiagram
     recommendation/price-cents
     recommendation/rank
     recommendation/tournament-date
+    recommendation/tournament-day
     recommendation/tournament-name
   }
   class sync-state {
@@ -106,8 +118,10 @@ classDiagram
     tab-state/user-id
   }
   class tournament {
+    tournament/decklists
     tournament/format
     tournament/held-at
+    tournament/held-on
     tournament/id
     tournament/name
     tournament/player-count
@@ -117,17 +131,28 @@ classDiagram
     user/email
     user/id
     user/joined-at
+    user/notifications
     user/owned-cards
     user/recommendation-candidates
     user/recommendations
     user/seen-recommendations
+    user/tab-states
     user/unsubscribed-at
   }
+  card -- card-aspect : card/aspects
+  card -- deck-card : card/deck-cards
+  card -- decklist : card/base-decklists
+  card -- decklist : card/leader-decklists
+  card -- owned-card : card/owned-cards
+  card -- printing : card/printings
   card-aspect -- card : card-aspect/card
+  card-set -- meta : card-set/metas
+  card-set -- printing : card-set/printings
   deck-card -- card : deck-card/card
   deck-card -- decklist : deck-card/decklist
   decklist -- card : decklist/base
   decklist -- card : decklist/leader
+  decklist -- deck-card : decklist/deck-cards
   decklist -- tournament : decklist/tournament
   meta -- card-set : meta/set
   notification -- user : notification/user
@@ -136,6 +161,9 @@ classDiagram
   printing -- card : printing/card
   printing -- card-set : printing/card-set
   tab-state -- user : tab-state/user
+  tournament -- decklist : tournament/decklists
+  user -- notification : user/notifications
   user -- owned-card : user/owned-cards
   user -- recommendation : user/recommendation-candidates
   user -- recommendation : user/recommendations
+  user -- tab-state : user/tab-states

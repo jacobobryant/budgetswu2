@@ -127,7 +127,7 @@
   (is (nil? (resolve-with request/page {:params {:page "3"}} (fn [_] [])))))
 
 (deftest card-search
-  (let [signals (fn [s] {:biff.datastar/signals {:tab/card-search s}})]
+  (let [signals (fn [s] {:biff.datastar/signals {:com.budgetswu/card-search s}})]
     (is (= {:request/card-search "luke"}
            (resolve-with request/card-search (signals "luke") (fn [_] []))))
     (is (= 100 (count (:request/card-search
@@ -144,12 +144,12 @@
                   (swap! queries conj statement)
                   [{:notification/id nid}])]
     (is (= {:request/notification {:notification/id nid}}
-           (resolve-with request/notification {:path-params {:token token}} handler)))
+           (resolve-with request/notification {:path-params {:notification-token token}} handler)))
     (is (= [:= :notification/token token]
            (get-in (first @queries) [:where 1])))
-    (is (= {} (resolve-with request/notification {:path-params {:token "x"}} handler)))
+    (is (= {} (resolve-with request/notification {:path-params {:notification-token "x"}} handler)))
     (is (nil? (resolve-with request/notification
-                            {:path-params {:token token}}
+                            {:path-params {:notification-token token}}
                             (fn [_] []))))))
 
 (deftest email-notifications

@@ -74,6 +74,25 @@
                          :tournament/held-at      "2026-10-10T00:00:00Z"
                          :tournament/player-count 20}]))))
 
+(deftest label
+  (is (= {:recommendation/label "Luke / Lake Country"}
+         (resolve-with recommendation/label
+                       {:recommendation/leader-name "Luke"
+                        :recommendation/base-name   "Lake Country"}
+                       [])))
+  (is (= {:recommendation/label "Unknown leader / Unknown base"}
+         (resolve-with recommendation/label {} []))))
+
+(deftest melee-url
+  (is (= {:recommendation/melee-url "https://melee.gg/Decklist/View/deck"}
+         (resolve-with recommendation/melee-url {:recommendation/melee-id "deck"} []))))
+
+(deftest tournament-day
+  (is (= {:recommendation/tournament-day "2026-10-10"}
+         (resolve-with recommendation/tournament-day
+                       {:recommendation/tournament-date "2026-10-10T23:00:00Z"}
+                       []))))
+
 (deftest popularity
   (is (= [{:recommendation/archetype-frequency 2
            :recommendation/popularity-rank     1
@@ -116,6 +135,6 @@
                          cards)))))
 
 (deftest eligible
-  (let [resolve #(resolve-with recommendation/eligible {:recommendation/card-count %} [])]
-    (is (= {:recommendation/eligible true} (resolve 50)))
-    (is (= {:recommendation/eligible false} (resolve 49)))))
+  (let [resolve-eligible #(resolve-with recommendation/eligible {:recommendation/card-count %} [])]
+    (is (= {:recommendation/eligible true} (resolve-eligible 50)))
+    (is (= {:recommendation/eligible false} (resolve-eligible 49)))))

@@ -76,8 +76,7 @@
                        (biff.datastar/init-opts)))
         contents]]])))
 
-(defn app-page [{:keys [biff.datastar/sse-request] :as ctx}
-                & content]
+(defn app-page [{:keys [biff.datastar/sse-request] :as ctx} & content]
   (let [content* [:div#biff-datastar-content
                   {:class ["flex min-h-full flex-1 flex-col"]}
                   content]]

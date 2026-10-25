@@ -5,12 +5,13 @@
 
 (defn deck [id leader]
   {:recommendation/id               id
-   :recommendation/melee-id         (str "melee-" id)
+   :recommendation/label            (str leader " / Lake Country")
+   :recommendation/melee-url        (str "https://melee.gg/Decklist/View/melee-" id)
    :recommendation/leader-name      leader
    :recommendation/base-name        "Lake Country"
    :recommendation/player-name      "Player"
    :recommendation/tournament-name  "Showdown"
-   :recommendation/tournament-date  "2026-10-10T00:00:00Z"
+   :recommendation/tournament-day   "2026-10-10"
    :recommendation/player-count     9
    :recommendation/placement        7
    :recommendation/price-cents      627
@@ -24,9 +25,7 @@
   (is (= "New decks: Luke / Lake Country and 1 other"
          (notification/subject [(deck "a" "Luke") (deck "b" "Leia")])))
   (is (= "New decks: Luke / Lake Country and 2 others"
-         (notification/subject [(deck "a" "Luke") (deck "b" "Leia") (deck "c" "Han")])))
-  (is (= "New deck: Unknown leader / Unknown base"
-         (notification/subject [{}]))))
+         (notification/subject [(deck "a" "Luke") (deck "b" "Leia") (deck "c" "Han")]))))
 
 (def ctx
   {:com.budgetswu/base-url        "https://example.com/"
@@ -48,6 +47,7 @@
     (is (str/includes? text "https://example.com/decks"))
     (is (str/includes? text "https://example.com/unsubscribe/"))
     (is (str/includes? text "1 Main St"))
+    (is (str/includes? text "Showdown · 2026-10-10"))
     (is (str/includes? html "https://melee.gg/Decklist/View/melee-b"))
     (is (str/includes? html "See all your recommendations"))))
 

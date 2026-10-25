@@ -92,10 +92,6 @@
 (defn state-value [sync-states state-id field]
   (some #(when (= state-id (:sync-state/id %)) (get % field)) sync-states))
 
-(def ^:private sync-states-query
-  [{:global/sync-states
-    [:sync-state/id :?sync-state/watermark :?sync-state/attempted-at]}])
-
 (defn utc-date [instant]
   (tick/date (tick/in instant "UTC")))
 
@@ -275,8 +271,13 @@
 (defn melee-decklist
   "Returns the tournament, decklist, and main deck cards (including the leader
   and base) for a decklist search result."
-  [{:keys [Guid TournamentId TournamentName TournamentStartDate OwnerDisplayName
-           TeamRank Records]}]
+  [{:keys [Guid
+           TournamentId
+           TournamentName
+           TournamentStartDate
+           OwnerDisplayName
+           TeamRank
+           Records]}]
   (let [cards   (filterv #(contains? deck-components (:c %)) Records)
         card-of #(some (fn [card]
                          (when (= % (deck-components (:c card)))
@@ -415,7 +416,8 @@
 ;;;; Sync job ==================================================================
 
 (defmachine sync-job
-  [:biff.graph.fx/query sync-states-query]
+  [:biff.graph.fx/query
+   [{:global/sync-states [:sync-state/id :?sync-state/watermark :?sync-state/attempted-at]}]]
 
   ;; Scheduled syncs run every 12 hours; manual ones (with :requested-at) run
   ;; right away.
@@ -551,7 +553,8 @@
   (fn [ctx {:keys [game-meta]}]
     {:game-meta    game-meta
      :graph        [:biff.graph.fx/query
-                    (conj sync-states-query {:global/tournaments [:tournament/id]})]
+                    [{:global/sync-states [:sync-state/id :?sync-state/watermark]}
+                     {:global/tournaments [:tournament/id]}]]
      :page         [:biff.fx/http (http-request ctx {:url (str melee "/Account/SignIn")})]
      :biff.fx/next :sign-in})
 
@@ -655,7 +658,21 @@
 
   :fetch-recommendations
   (fn [_ _]
-    {:graph        [:biff.graph.fx/query [{:global/front recommendations/fields}]]
+    {:graph        [:biff.graph.fx/query
+                    [{:global/front
+                      [:recommendation/id
+                       :?recommendation/melee-url
+                       :?recommendation/leader-name
+                       :?recommendation/base-name
+                       :?recommendation/player-name
+                       :recommendation/tournament-name
+                       :recommendation/tournament-day
+                       :recommendation/player-count
+                       :recommendation/placement
+                       :recommendation/price-cents
+                       :recommendation/full-price-cents
+                       :recommendation/popularity-rank
+                       :recommendation/archetype-count]}]]
      :biff.fx/next :save-recommendations})
 
   :save-recommendations
@@ -678,7 +695,8 @@
     (if (and base-url mailing-address)
       {:graph        [:biff.graph.fx/query [{:global/notification-candidates [:user/id]}]]
        :biff.fx/next :enqueue-notifications}
-      {:_            [:com.budgetswu.fx/log :warn
+      {:_            [:com.budgetswu.fx/log
+                      :warn
                       "Skipping notification emails: BASE_URL or MAILING_ADDRESS is unset"]
        :biff.fx/next :complete}))
 
@@ -704,12 +722,6 @@
     (catch Throwable t
       (log/error t "Sync job failed"))))
 
-(defn request-sync
-  "Returns an effect that queues a sync. With :requested-at, it runs even if
-  it isn't due."
-  [opts]
-  [:biff.background.fx/submit-jobs ::sync [opts]])
-
 ;;;; Notifications =============================================================
 
 (defn- set-seen [user-id ids]
@@ -724,7 +736,20 @@
      [:user/id
       :user/email
       :?user/seen-recommendations
-      {:user/recommendations recommendations/fields}]])
+      {:user/recommendations [:recommendation/id
+                              :recommendation/label
+                              :?recommendation/melee-url
+                              :?recommendation/leader-name
+                              :?recommendation/base-name
+                              :?recommendation/player-name
+                              :recommendation/tournament-name
+                              :recommendation/tournament-day
+                              :recommendation/player-count
+                              :recommendation/placement
+                              :recommendation/price-cents
+                              :recommendation/full-price-cents
+                              :recommendation/popularity-rank
+                              :recommendation/archetype-count]}]])
 
   (fn [{:biff.fx/keys [random-uuid4-seq] :as ctx}
        {:user/keys [id email seen-recommendations recommendations]}]

@@ -16,34 +16,19 @@
 (def uid-1 #uuid "00000000-0000-0000-0000-000000000001")
 (def uid-2 #uuid "00000000-0000-0000-0000-000000000002")
 
-(deftest owned-cards
-  (let [row {:owned-card/id       #uuid "00000000-0000-0000-0000-000000000003"
-             :owned-card/user-id  uid-2
-             :owned-card/card-id  "x"
-             :owned-card/quantity 2}]
-    (is (= [{:user/owned-cards []}
-            {:user/owned-cards [(dissoc row :owned-card/user-id)]}]
-           (resolve-with user/owned-cards
-                         {:biff.graph/input [{:user/id uid-1} {:user/id uid-2}]}
-                         {:owned-card [row]})))))
-
 (deftest recommendation-candidates
-  (let [query  (atom nil)
-        result ((:biff.graph/resolve-fn user/recommendation-candidates)
-                {:biff.graph/input [{:user/id uid-1} {:user/id uid-2}]
-                 :biff.fx/handlers {:biff.graph.fx/query
-                                    (fn [_ q]
-                                      (reset! query q)
-                                      {:global/current-recommendations
-                                       [{:recommendation/id "a"} {:recommendation/id "b"}]})}})]
-    (is (= [{:global/current-recommendations [:recommendation/id]}] @query))
+  (let [current [{:recommendation/id "a"} {:recommendation/id "b"}]]
     (is (= [{:user/recommendation-candidates
              [{:recommendation/id "a" :recommendation/user {:user/id uid-1}}
               {:recommendation/id "b" :recommendation/user {:user/id uid-1}}]}
             {:user/recommendation-candidates
              [{:recommendation/id "a" :recommendation/user {:user/id uid-2}}
               {:recommendation/id "b" :recommendation/user {:user/id uid-2}}]}]
-           result))))
+           (resolve-with user/recommendation-candidates
+                         {:biff.graph/input
+                          [{:user/id uid-1 :global/current-recommendations current}
+                           {:user/id uid-2 :global/current-recommendations current}]}
+                         {})))))
 
 (deftest recommendations
   (let [user      {:user/id uid-1}

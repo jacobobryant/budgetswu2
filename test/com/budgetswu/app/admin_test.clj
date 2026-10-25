@@ -1,21 +1,12 @@
 (ns com.budgetswu.app.admin-test
   (:require [clojure.test :refer [deftest is testing]]
             [com.budgetswu.app.admin :as admin]
-            [com.budgetswu.lib.middleware :as mid]
-            [com.budgetswu.lib.notification-test :refer [deck]]
-            [com.budgetswu.lib.ui :as ui]))
+            [com.budgetswu.lib.notification-test :refer [deck]]))
 
 (def uid #uuid "00000000-0000-0000-0000-000000000001")
 
-(deftest admin?
-  (is (ui/admin? {:session {:uid uid} :biff.admin/admin-user-id (str uid)}))
-  (is (not (ui/admin? {:session {:uid uid}})))
-  (is (not (ui/admin? {:session {:uid uid} :biff.admin/admin-user-id "someone-else"})))
-  (testing "signed-out visitors aren't the admin even when no admin is configured"
-    (is (not (ui/admin? {:session {} :biff.admin/admin-user-id ""})))))
-
 (deftest wrap-admin
-  (let [handler (mid/wrap-admin (constantly {:status 200}))]
+  (let [handler (admin/wrap-admin (constantly {:status 200}))]
     (is (= 200 (:status (handler {:session                  {:uid uid}
                                   :biff.admin/admin-user-id (str uid)}))))
     (is (= 404 (:status (handler {:session {:uid uid}}))))))
@@ -32,8 +23,9 @@
 (deftest select-deck
   (let [[state] (admin/select-deck)
 
-        ctx   {:session {:uid uid}}
-        input {:request/decklist  {:decklist/id "b"}
+        ctx   {}
+        input {:session/user      {:user/id uid}
+               :request/decklist  {:decklist/id "b"}
                :request/selected  true
                :request/tab-state {:tab-state/id tab-id :tab-state/admin-selected #{"a"}}}]
     (is (= {:_      (tab-state-write {:tab-state/admin-selected [:lift #{"a" "b"}]
@@ -93,9 +85,9 @@
 (deftest regenerate-home
   (let [[state] (admin/regenerate-home)
 
-        ctx    {:session {:uid uid}}
-        result (state ctx {:global/recommendations [(deck "a" "Luke") (deck "b" "Leia")]
-                           :request/tab-state      {:tab-state/id tab-id}})]
+        result (state {} {:session/user           {:user/id uid}
+                          :global/recommendations [(deck "a" "Luke") (deck "b" "Leia")]
+                          :request/tab-state      {:tab-state/id tab-id}})]
     (is (= :com.budgetswu.fx/write-home-html (first (:_home result))))
     (is (re-find #"Leia" (second (:_home result))))
     (is (= (tab-state-write {:tab-state/home-status "Regenerated with 2 decks."})
@@ -106,8 +98,9 @@
   (let [[state] (admin/request-sync)
 
         now    #inst "2026-10-12T00:00:00Z"
-        result (state {:session {:uid uid} :biff.fx/now now}
-                      {:request/tab-state {:tab-state/id tab-id}})]
+        result (state {:biff.fx/now now}
+                      {:session/user      {:user/id uid}
+                       :request/tab-state {:tab-state/id tab-id}})]
     (is (= [:biff.background.fx/submit-jobs :com.budgetswu.work.sync/sync [{:requested-at now}]]
            (:_ result)))
     (is (= (tab-state-write {:tab-state/sync-status "Sync started."}) (:_status result)))

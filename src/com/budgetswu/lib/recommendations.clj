@@ -1,30 +1,5 @@
 (ns com.budgetswu.lib.recommendations
-  (:require [com.budgetswu.lib.ui :as ui]
-            [tick.core :as tick]))
-
-(def fields
-  "The recommendation attributes needed to show a recommendation."
-  [:recommendation/id
-   :?recommendation/melee-id
-   :?recommendation/leader-name
-   :?recommendation/base-name
-   :?recommendation/player-name
-   :recommendation/tournament-name
-   :recommendation/tournament-date
-   :recommendation/player-count
-   :recommendation/placement
-   :recommendation/price-cents
-   :recommendation/full-price-cents
-   :recommendation/popularity-rank
-   :recommendation/archetype-count])
-
-(def candidate-fields
-  "The recommendation attributes needed to choose recommendations."
-  [:recommendation/id
-   :?recommendation/eligible
-   :?recommendation/price-cents
-   :?recommendation/percentile
-   :?recommendation/archetype-frequency])
+  (:require [com.budgetswu.lib.ui :as ui]))
 
 (def objectives
   "Recommendations are the eligible decks that no other deck beats on price,
@@ -42,15 +17,8 @@
         "the cards you already own. ")
    [:a {:href  "https://obryant.dev/p/budgetswu"
         :class "text-orange-400 underline-offset-4 hover:underline"}
-    "About"] "."])
-
-(defn melee-url [melee-id]
-  (str "https://melee.gg/Decklist/View/" melee-id))
-
-(defn day
-  "Returns the UTC date of a tournament's start time."
-  [tournament-date]
-  (some-> tournament-date tick/instant (tick/in "UTC") tick/date str))
+    "About"]
+   "."])
 
 (defn- stat [label value & [note]]
   [:div {:class ["min-w-0 rounded-md bg-stone-100 px-2 py-2 sm:px-3"]}
@@ -61,11 +29,18 @@
    (when note
      [:dd {:class ["whitespace-nowrap text-xs text-stone-500"]} note])])
 
-(defn- item [personal i {:recommendation/keys [id melee-id leader-name base-name
-                                               player-name tournament-name
-                                               tournament-date player-count
-                                               placement price-cents
-                                               full-price-cents popularity-rank
+(defn- item [personal i {:recommendation/keys [id
+                                               melee-url
+                                               leader-name
+                                               base-name
+                                               player-name
+                                               tournament-name
+                                               tournament-day
+                                               player-count
+                                               placement
+                                               price-cents
+                                               full-price-cents
+                                               popularity-rank
                                                archetype-count]}]
   [:li {:key   id
         :class ["rounded-lg bg-white p-4 text-stone-900 shadow-lg sm:p-6"]}
@@ -78,7 +53,7 @@
     (str (or player-name "Unknown player") " · "
          (or tournament-name "Unknown tournament") " · ")
     [:span {:class ["whitespace-nowrap"]}
-     (day tournament-date)]]
+     tournament-day]]
    [:dl {:class ["mt-4 grid gap-2 sm:gap-3"
                  "grid-cols-[repeat(auto-fit,minmax(5.5rem,1fr))]"]}
     (if personal
@@ -89,8 +64,8 @@
       (stat "Price" [:span {:class ["text-orange-700"]} (money price-cents)]))
     (stat "Placed" (str placement " of " player-count))
     (stat "Popularity" (str "#" popularity-rank " of " archetype-count))]
-   (when melee-id
-     [:a {:href   (melee-url melee-id)
+   (when melee-url
+     [:a {:href   melee-url
           :target "_blank"
           :rel    "noopener noreferrer"
           :class  ["mt-4 block rounded-md border border-orange-300"

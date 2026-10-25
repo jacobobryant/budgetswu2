@@ -6,6 +6,6 @@
 (defpath decks "/decks")
 (defpath cards "/cards")
 (defpath settings "/settings")
-(defpath unsubscribe "/unsubscribe/:token")
+(defpath unsubscribe "/unsubscribe/:notification-token")
 (defpath admin "/admin")
 (defpath signout "/signout")
