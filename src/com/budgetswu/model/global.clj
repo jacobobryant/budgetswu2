@@ -7,9 +7,9 @@
 (defresolver sync-states
   {:output [{:global/sync-states
              [:sync-state/id
-              [:? :sync-state/watermark]
-              [:? :sync-state/attempted-at]
-              [:? :sync-state/completed-at]]}]}
+              :?sync-state/watermark
+              :?sync-state/attempted-at
+              :?sync-state/completed-at]}]}
 
   (fn [_ _]
     [:biff.sqlite.fx/execute
@@ -44,6 +44,26 @@
   (fn [_ rows]
     {:global/tournaments rows}))
 
+(defresolver recent-tournaments
+  {:output [{:global/recent-tournaments
+             [:tournament/id
+              :tournament/name
+              :tournament/held-at
+              :?tournament/player-count]}]}
+
+  (fn [_ _]
+    [:biff.sqlite.fx/execute
+     {:select   [:tournament/id
+                 :tournament/name
+                 :tournament/held-at
+                 :tournament/player-count]
+      :from     :tournament
+      :order-by [[:tournament/held-at :desc]]
+      :limit    5}])
+
+  (fn [_ rows]
+    {:global/recent-tournaments rows}))
+
 (defresolver cards
   {:output [{:global/cards [:card/id]}]}
 
@@ -55,8 +75,8 @@
 
 (defresolver card-sets
   {:output [{:global/card-sets [:card-set/id
-                                [:? :card-set/number]
-                                [:? :card-set/published-on]]}]}
+                                :?card-set/number
+                                :?card-set/published-on]}]}
 
   (fn [_ _]
     [:biff.sqlite.fx/execute
@@ -122,7 +142,7 @@
 ;; Ranks are saved by the sync after its decklists, so a failed sync can leave
 ;; ranks for decks that are no longer eligible.
 (defresolver stored-recommendations
-  {:input  [{:global/ranked-recommendations [:recommendation/id [:? :recommendation/eligible]]}]
+  {:input  [{:global/ranked-recommendations [:recommendation/id :?recommendation/eligible]}]
    :output [{:global/recommendations [:recommendation/id]}]}
   [_ {:global/keys [ranked-recommendations]}]
   {:global/recommendations
@@ -170,6 +190,7 @@
    [sync-states
     metas
     tournaments
+    recent-tournaments
     cards
     card-sets
     standard-printings

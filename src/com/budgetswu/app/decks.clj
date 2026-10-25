@@ -18,7 +18,7 @@
 (defpipeline decks-page
   [:biff.graph.fx/query
    [{:session/user [:user/id
-                    [:? :user/seen-recommendations]
+                    :?user/seen-recommendations
                     {:user/recommendations recommendations/fields}
                     {:user/owned-cards [:owned-card/id]}]}]]
 

@@ -5,10 +5,10 @@
 (def fields
   "The recommendation attributes needed to show a recommendation."
   [:recommendation/id
-   [:? :recommendation/melee-id]
-   [:? :recommendation/leader-name]
-   [:? :recommendation/base-name]
-   [:? :recommendation/player-name]
+   :?recommendation/melee-id
+   :?recommendation/leader-name
+   :?recommendation/base-name
+   :?recommendation/player-name
    :recommendation/tournament-name
    :recommendation/tournament-date
    :recommendation/player-count
@@ -21,10 +21,10 @@
 (def candidate-fields
   "The recommendation attributes needed to choose recommendations."
   [:recommendation/id
-   [:? :recommendation/eligible]
-   [:? :recommendation/price-cents]
-   [:? :recommendation/percentile]
-   [:? :recommendation/archetype-frequency]])
+   :?recommendation/eligible
+   :?recommendation/price-cents
+   :?recommendation/percentile
+   :?recommendation/archetype-frequency])
 
 (def objectives
   "Recommendations are the eligible decks that no other deck beats on price,

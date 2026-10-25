@@ -133,7 +133,7 @@
 
 (defresolver prices
   {:input  [:recommendation/id
-            {[:? :recommendation/user]
+            {:?recommendation/user
              [{:user/owned-cards [:owned-card/card-id :owned-card/quantity]}]}]
    :output [:recommendation/card-count
             :recommendation/price-cents

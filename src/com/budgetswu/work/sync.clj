@@ -94,7 +94,7 @@
 
 (def ^:private sync-states-query
   [{:global/sync-states
-    [:sync-state/id [:? :sync-state/watermark] [:? :sync-state/attempted-at]]}])
+    [:sync-state/id :?sync-state/watermark :?sync-state/attempted-at]}])
 
 (defn utc-date [instant]
   (tick/date (tick/in instant "UTC")))
@@ -518,8 +518,8 @@
   (fn [_ _]
     {:graph        [:biff.graph.fx/query
                     [{:global/card-sets [:card-set/id
-                                         [:? :card-set/number]
-                                         [:? :card-set/published-on]]}
+                                         :?card-set/number
+                                         :?card-set/published-on]}
                      {:global/metas [:meta/id :meta/is-current]}]]
      :biff.fx/next :save-meta})
 
@@ -723,7 +723,7 @@
      {:user/id (:user/id job)}
      [:user/id
       :user/email
-      [:? :user/seen-recommendations]
+      :?user/seen-recommendations
       {:user/recommendations recommendations/fields}]])
 
   (fn [{:biff.fx/keys [random-uuid4-seq] :as ctx}

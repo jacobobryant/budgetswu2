@@ -13,6 +13,11 @@ Admin, desktop (>=640px wide), signed in as the admin
 | | Last completed: 2026-10-25 16:05 UTC                                 | |
 | |                                                                      | |
 | | [Sync now]  Sync started.                                            | |
+| |                                                                      | |
+| | Most recent tournaments                                              | |
+| | Homeworlds Premier Tournament · 2026-10-24 · 6 players               | |
+| | Homeworlds 3v3 $2K Event · 2026-10-24 · 10 players                   | |
+| | ...                                                                  | |
 | +----------------------------------------------------------------------+ |
 |                                                                          |
 | +----------------------------------------------------------------------+ |

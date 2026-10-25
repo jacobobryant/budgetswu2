@@ -18,6 +18,10 @@
                 :global/metas {:meta/id "HMW" :meta/is-current true}]
                [global/tournaments :tournament
                 :global/tournaments {:tournament/id "event"}]
+               [global/recent-tournaments :tournament
+                :global/recent-tournaments {:tournament/id      "event"
+                                            :tournament/name    "Planetary Qualifier"
+                                            :tournament/held-at "2026-10-10T14:00:00Z"}]
                [global/card-sets :card-set
                 :global/card-sets {:card-set/id           "SOR"
                                    :card-set/number       1

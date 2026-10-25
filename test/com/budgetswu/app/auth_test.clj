@@ -6,7 +6,7 @@
   (let [[query result] (auth/get-user-id)
 
         uid #uuid "00000000-0000-0000-0000-000000000001"]
-    (is (= [:biff.graph.fx/query {:user/email "a@example.com"} [[:? :user/id]]]
+    (is (= [:biff.graph.fx/query {:user/email "a@example.com"} [:?user/id]]
            (query {} "a@example.com")))
     (is (= uid (result {} {:user/id uid})))
     (is (nil? (result {} {})))))

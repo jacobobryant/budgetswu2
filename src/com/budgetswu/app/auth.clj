@@ -7,7 +7,7 @@
 ;; `email` has already been normalized by biff.authenticate.
 (defpipeline get-user-id
   (fn [_ctx email]
-    [:biff.graph.fx/query {:user/email email} [[:? :user/id]]])
+    [:biff.graph.fx/query {:user/email email} [:?user/id]])
 
   (fn [_ctx result]
     (:user/id result)))

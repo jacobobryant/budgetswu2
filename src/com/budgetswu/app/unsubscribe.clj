@@ -11,9 +11,9 @@
 
 (defpipeline unsubscribe-page
   [:biff.graph.fx/query
-   [{[:? :request/notification]
+   [{:?request/notification
      [:notification/token
-      {:notification/user [:user/email [:? :user/unsubscribed-at]]}]}]]
+      {:notification/user [:user/email :?user/unsubscribed-at]}]}]]
 
   (fn [request {:keys [request/notification]}]
     (let [{:user/keys [email unsubscribed-at]} (:notification/user notification)]
@@ -57,7 +57,7 @@
 ;; The token in the link stands in for signing in, so this write can't go
 ;; through the session-based authorization rules.
 (defpipeline unsubscribe
-  [:biff.graph.fx/query [{[:? :request/notification] [{:notification/user [:user/id]}]}]]
+  [:biff.graph.fx/query [{:?request/notification [{:notification/user [:user/id]}]}]]
 
   (fn [{:biff.fx/keys [now]} {:keys [request/notification]}]
     (if-some [user-id (get-in notification [:notification/user :user/id])]

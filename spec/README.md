@@ -204,7 +204,9 @@ The admin page has:
   immediately regardless of the 12-hour interval, then shows "Sync started."
   next to the button. Manual and scheduled syncs run one at a time, and a manual
   request is skipped if another sync started after it was made. Any sync failure
-  is logged as an error.
+  is logged as an error. Below the button, it lists the 5 tournaments with the
+  latest start dates (name, date, and player count when known) so you can check
+  that the sync is bringing in new data.
 - A way to send a test notification email to the current user. It shows a
   checkbox list of the user's current recommendations (in the same order as the
   "Decks" page), all unselected by default, and a "Send test email" button. The

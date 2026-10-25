@@ -152,7 +152,7 @@
       {:card-page/cards [:card/id
                          :card/type
                          :card/price-cents
-                         [:? :card/external-uid]]}]}]]
+                         :?card/external-uid]}]}]]
 
   (fn [request {:keys [session/user request/card-page]}]
     (let [{:card-page/keys [cards search]} card-page

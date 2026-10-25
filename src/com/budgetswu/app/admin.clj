@@ -61,13 +61,17 @@
 (defpipeline admin-page
   [:biff.graph.fx/query
    [{:session/user [:user/email {:user/recommendations recommendations/fields}]}
-    {:global/sync-states [:sync-state/id [:? :sync-state/completed-at]]}
-    {[:? :request/tab-state] [[:? :tab-state/admin-selected]
-                              [:? :tab-state/admin-status]
-                              [:? :tab-state/home-status]
-                              [:? :tab-state/sync-status]]}]]
+    {:global/sync-states [:sync-state/id :?sync-state/completed-at]}
+    {:global/recent-tournaments [:tournament/name
+                                 :tournament/held-at
+                                 :?tournament/player-count]}
+    {:?request/tab-state [:?tab-state/admin-selected
+                          :?tab-state/admin-status
+                          :?tab-state/home-status
+                          :?tab-state/sync-status]}]]
 
-  (fn [request {:keys [session/user global/sync-states request/tab-state]}]
+  (fn [request {:keys        [session/user request/tab-state]
+                :global/keys [sync-states recent-tournaments]}]
     (let [{:user/keys [email recommendations]} user
 
           {:tab-state/keys [admin-selected admin-status home-status sync-status]} tab-state
@@ -102,7 +106,18 @@
                      :class         ["rounded-md bg-orange-700 px-4 py-2 text-sm"
                                      "font-semibold text-white hover:bg-orange-800"]}
             "Sync now"]
-           [:span {:class ["text-sm text-stone-600"]} sync-status]])
+           [:span {:class ["text-sm text-stone-600"]} sync-status]]
+          [:h3 {:class ["mt-5 font-semibold"]} "Most recent tournaments"]
+          (if (seq recent-tournaments)
+            [:ul {:class ["mt-2 grid gap-1 text-sm"]}
+             (mapv (fn [{:tournament/keys [held-at player-count] :as tournament}]
+                     [:li
+                      [:span {:class ["font-medium"]} (:tournament/name tournament)]
+                      [:span {:class ["text-stone-500"]}
+                       (str " · " (recommendations/day held-at)
+                            (when player-count (str " · " player-count " players")))]])
+                   recent-tournaments)]
+            [:p {:class ["mt-2 text-sm text-stone-500"]} "No tournaments yet."]))
          (panel
           {}
           [:h2 {:class ["text-lg font-semibold"]} "Home page"]
@@ -145,7 +160,7 @@
   [:biff.graph.fx/query
    [{:request/decklist [:decklist/id]}
     :request/selected
-    {:request/tab-state [:tab-state/id [:? :tab-state/admin-selected]]}]]
+    {:request/tab-state [:tab-state/id :?tab-state/admin-selected]}]]
 
   (fn [{:keys [session]} {:keys [request/decklist request/selected request/tab-state]}]
     (let [{:tab-state/keys [id admin-selected]} tab-state]
@@ -161,7 +176,7 @@
 (defpipeline send-test-email
   [:biff.graph.fx/query
    [{:session/user [:user/id :user/email {:user/recommendations recommendations/fields}]}
-    {:request/tab-state [:tab-state/id [:? :tab-state/admin-selected]]}]]
+    {:request/tab-state [:tab-state/id :?tab-state/admin-selected]}]]
 
   (fn [{:biff.fx/keys [random-uuid4-seq] :as ctx}
        {:keys [session/user request/tab-state]}]

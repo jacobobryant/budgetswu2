@@ -19,7 +19,7 @@
 
 (defpipeline settings-page
   [:biff.graph.fx/query
-   [{:session/user [:user/email [:? :user/unsubscribed-at]]}]]
+   [{:session/user [:user/email :?user/unsubscribed-at]}]]
 
   (fn [request {:keys [session/user]}]
     (let [subscribed (nil? (:user/unsubscribed-at user))]

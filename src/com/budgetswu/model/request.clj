@@ -153,7 +153,7 @@
               {:card-page/cards [:card/id
                                  :card/type
                                  :card/price-cents
-                                 [:? :card/external-uid]]}]}]}
+                                 :?card/external-uid]}]}]}
 
   (fn [{:keys [biff.datastar/tab-id]} _]
     (cond-> {:card-sets [:biff.sqlite.fx/execute
