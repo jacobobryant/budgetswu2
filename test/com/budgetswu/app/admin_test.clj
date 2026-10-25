@@ -44,10 +44,7 @@
                              :tab-state/admin-status   nil})
            (:_ (state ctx (assoc input
                                  :request/decklist {:decklist/id "a"}
-                                 :request/selected false)))))
-    (is (= {:status 400} (state ctx (dissoc input :request/decklist))))
-    (is (= {:status 400} (state ctx (dissoc input :request/selected))))
-    (is (= {:status 400} (state ctx (dissoc input :request/tab-state))))))
+                                 :request/selected false)))))))
 
 (deftest send-test-email
   (let [[decide send-email save] (admin/send-test-email)
@@ -69,9 +66,7 @@
       (is (= {:biff.fx/return {:status 400}}
              (decide ctx {:session/user user :request/tab-state (tab #{})})))
       (is (= {:biff.fx/return {:status 400}}
-             (decide ctx {:session/user user :request/tab-state {:tab-state/id tab-id}})))
-      (is (= {:biff.fx/return {:status 400}}
-             (decide ctx {:session/user user}))))
+             (decide ctx {:session/user user :request/tab-state {:tab-state/id tab-id}}))))
     (testing "the selected decks are the email's new decks"
       (let [result (decide ctx {:session/user user :request/tab-state (tab #{"a" "c"})})]
         (is (= [:biff.sqlite.fx/authorized-write
@@ -105,8 +100,7 @@
     (is (re-find #"Leia" (second (:_home result))))
     (is (= (tab-state-write {:tab-state/home-status "Regenerated with 2 decks."})
            (:_status result)))
-    (is (= 204 (:status result)))
-    (is (= {:status 400} (state ctx {:global/recommendations []})))))
+    (is (= 204 (:status result)))))
 
 (deftest get-users
   (let [[state] (admin/get-users)

@@ -15,5 +15,4 @@
                              :where  [:= :user/id uid]}]
                    :status 204})]
     (is (= (written now) (state ctx {:request/email-notifications false})))
-    (is (= (written nil) (state ctx {:request/email-notifications true})))
-    (is (= {:status 400} (state ctx {})))))
+    (is (= (written nil) (state ctx {:request/email-notifications true})))))

@@ -116,27 +116,25 @@
 
 (defpipeline select-deck
   [:biff.graph.fx/query
-   [{[:? :request/decklist] [:decklist/id]}
-    [:? :request/selected]
-    {[:? :request/tab-state] [:tab-state/id [:? :tab-state/admin-selected]]}]]
+   [{:request/decklist [:decklist/id]}
+    :request/selected
+    {:request/tab-state [:tab-state/id [:? :tab-state/admin-selected]]}]]
 
   (fn [{:keys [session]} {:keys [request/decklist request/selected request/tab-state]}]
     (let [{:tab-state/keys [id admin-selected]} tab-state]
-      (if (and decklist (some? selected) tab-state)
-        {:_      (save-tab-state
-                  id
-                  (:uid session)
-                  {:tab-state/admin-selected [:lift ((if selected conj disj)
-                                                     (set admin-selected)
-                                                     (:decklist/id decklist))]
-                   :tab-state/admin-status   nil})
-         :status 204}
-        {:status 400}))))
+      {:_      (save-tab-state
+                id
+                (:uid session)
+                {:tab-state/admin-selected [:lift ((if selected conj disj)
+                                                   (set admin-selected)
+                                                   (:decklist/id decklist))]
+                 :tab-state/admin-status   nil})
+       :status 204})))
 
 (defpipeline send-test-email
   [:biff.graph.fx/query
    [{:session/user [:user/id :user/email {:user/recommendations recommendations/fields}]}
-    {[:? :request/tab-state] [:tab-state/id [:? :tab-state/admin-selected]]}]]
+    {:request/tab-state [:tab-state/id [:? :tab-state/admin-selected]]}]]
 
   (fn [{:biff.fx/keys [random-uuid4-seq] :as ctx}
        {:keys [session/user request/tab-state]}]
@@ -145,7 +143,7 @@
           decks (filterv #(contains? (:tab-state/admin-selected tab-state) (:recommendation/id %))
                          recommendations)
           token (first random-uuid4-seq)]
-      (if (or (nil? tab-state) (empty? decks))
+      (if (empty? decks)
         {:biff.fx/return {:status 400}}
         ;; The record makes the email's unsubscribe link work.
         {:_       [:biff.sqlite.fx/authorized-write (notification/insert ctx id token)]
@@ -169,20 +167,18 @@
 (defpipeline regenerate-home
   [:biff.graph.fx/query
    [{:global/recommendations recommendations/fields}
-    {[:? :request/tab-state] [:tab-state/id]}]]
+    {:request/tab-state [:tab-state/id]}]]
 
   (fn [{:keys [session] :as ctx} {:keys [global/recommendations request/tab-state]}]
-    (if tab-state
-      {:_home   [:com.budgetswu.fx/write-home-html
-                 (:body (recommendations/home-response ctx recommendations))]
-       :_status (save-tab-state
-                 (:tab-state/id tab-state)
-                 (:uid session)
-                 {:tab-state/home-status (str "Regenerated with "
-                                              (count recommendations)
-                                              " decks.")})
-       :status  204}
-      {:status 400})))
+    {:_home   [:com.budgetswu.fx/write-home-html
+               (:body (recommendations/home-response ctx recommendations))]
+     :_status (save-tab-state
+               (:tab-state/id tab-state)
+               (:uid session)
+               {:tab-state/home-status (str "Regenerated with "
+                                            (count recommendations)
+                                            " decks.")})
+     :status  204}))
 
 ;;;; Biff dashboard ============================================================
 

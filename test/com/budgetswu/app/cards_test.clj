@@ -18,15 +18,13 @@
                       :on-conflict   [:owned-card/user-id :owned-card/card-id]
                       :do-update-set [:owned-card/quantity]}]
             :status 204}
-           (state ctx card)))
-    (is (= {:status 400} (state ctx (dissoc card :request/quantity))))
-    (is (= {:status 400} (state ctx (dissoc card :request/card))))))
+           (state ctx card)))))
 
 (def tab-id #uuid "00000000-0000-0000-0000-000000000003")
 
 (deftest set-search
   (let [[state] (cards/set-search)
-        ctx     {:session {:uid uid} :biff.datastar/tab-id tab-id}]
+        ctx     {:session {:uid uid}}]
     (is (= {:_      [:biff.sqlite.fx/authorized-write
                      {:insert-into   :tab-state
                       :values        [{:tab-state/id          tab-id
@@ -36,13 +34,12 @@
                       :on-conflict   [:tab-state/id]
                       :do-update-set [:tab-state/card-search :tab-state/card-page]}]
             :status 204}
-           (state ctx {:request/card-search "vader"})))
-    (is (= {:status 400} (state ctx {})))
-    (is (= {:status 400} (state {} {:request/card-search "vader"})))))
+           (state ctx {:request/tab-state   {:tab-state/id tab-id}
+                       :request/card-search "vader"})))))
 
 (deftest set-page
   (let [[state] (cards/set-page)
-        ctx     {:session {:uid uid} :biff.datastar/tab-id tab-id}]
+        ctx     {:session {:uid uid}}]
     (is (= {:_      [:biff.sqlite.fx/authorized-write
                      {:insert-into   :tab-state
                       :values        [{:tab-state/id        tab-id
@@ -51,5 +48,5 @@
                       :on-conflict   [:tab-state/id]
                       :do-update-set [:tab-state/card-page]}]
             :status 204}
-           (state ctx {:request/page 3})))
-    (is (= {:status 400} (state ctx {})))))
+           (state ctx {:request/tab-state {:tab-state/id tab-id}
+                       :request/page      3})))))

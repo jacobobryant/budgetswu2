@@ -184,54 +184,48 @@
 ;;;; Actions ===================================================================
 
 (defpipeline set-quantity
-  [:biff.graph.fx/query [{:request/card [:card/id]} [:? :request/quantity]]]
+  [:biff.graph.fx/query [{:request/card [:card/id]} :request/quantity]]
 
   (fn [{:keys [session] :biff.fx/keys [random-uuid7-seq]}
        {:keys [request/card request/quantity]}]
-    (if (and card quantity)
-      {:_      [:biff.sqlite.fx/authorized-write
-                {:insert-into   :owned-card
-                 :values        [{:owned-card/id       (first random-uuid7-seq)
-                                  :owned-card/user-id  (:uid session)
-                                  :owned-card/card-id  (:card/id card)
-                                  :owned-card/quantity quantity}]
-                 :on-conflict   [:owned-card/user-id :owned-card/card-id]
-                 :do-update-set [:owned-card/quantity]}]
-       :status 204}
-      {:status 400})))
+    {:_      [:biff.sqlite.fx/authorized-write
+              {:insert-into   :owned-card
+               :values        [{:owned-card/id       (first random-uuid7-seq)
+                                :owned-card/user-id  (:uid session)
+                                :owned-card/card-id  (:card/id card)
+                                :owned-card/quantity quantity}]
+               :on-conflict   [:owned-card/user-id :owned-card/card-id]
+               :do-update-set [:owned-card/quantity]}]
+     :status 204}))
 
 ;; Search and page live in tab state so that rerenders (e.g. after setting a
 ;; card count) keep showing the same results.
 (defpipeline set-search
-  [:biff.graph.fx/query [[:? :request/card-search]]]
+  [:biff.graph.fx/query [{:request/tab-state [:tab-state/id]} :request/card-search]]
 
-  (fn [{:keys [session biff.datastar/tab-id]} {:keys [request/card-search]}]
-    (if (and tab-id card-search)
-      {:_      [:biff.sqlite.fx/authorized-write
-                {:insert-into   :tab-state
-                 :values        [{:tab-state/id          tab-id
-                                  :tab-state/user-id     (:uid session)
-                                  :tab-state/card-search card-search
-                                  :tab-state/card-page   1}]
-                 :on-conflict   [:tab-state/id]
-                 :do-update-set [:tab-state/card-search :tab-state/card-page]}]
-       :status 204}
-      {:status 400})))
+  (fn [{:keys [session]} {:keys [request/tab-state request/card-search]}]
+    {:_      [:biff.sqlite.fx/authorized-write
+              {:insert-into   :tab-state
+               :values        [{:tab-state/id          (:tab-state/id tab-state)
+                                :tab-state/user-id     (:uid session)
+                                :tab-state/card-search card-search
+                                :tab-state/card-page   1}]
+               :on-conflict   [:tab-state/id]
+               :do-update-set [:tab-state/card-search :tab-state/card-page]}]
+     :status 204}))
 
 (defpipeline set-page
-  [:biff.graph.fx/query [[:? :request/page]]]
+  [:biff.graph.fx/query [{:request/tab-state [:tab-state/id]} :request/page]]
 
-  (fn [{:keys [session biff.datastar/tab-id]} {:keys [request/page]}]
-    (if (and tab-id page)
-      {:_      [:biff.sqlite.fx/authorized-write
-                {:insert-into   :tab-state
-                 :values        [{:tab-state/id        tab-id
-                                  :tab-state/user-id   (:uid session)
-                                  :tab-state/card-page page}]
-                 :on-conflict   [:tab-state/id]
-                 :do-update-set [:tab-state/card-page]}]
-       :status 204}
-      {:status 400})))
+  (fn [{:keys [session]} {:keys [request/tab-state request/page]}]
+    {:_      [:biff.sqlite.fx/authorized-write
+              {:insert-into   :tab-state
+               :values        [{:tab-state/id        (:tab-state/id tab-state)
+                                :tab-state/user-id   (:uid session)
+                                :tab-state/card-page page}]
+               :on-conflict   [:tab-state/id]
+               :do-update-set [:tab-state/card-page]}]
+     :status 204}))
 
 (def module
   {:biff.ring/routes

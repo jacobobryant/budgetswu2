@@ -44,17 +44,15 @@
 ;;;; Actions ===================================================================
 
 (defpipeline set-notifications
-  [:biff.graph.fx/query [[:? :request/email-notifications]]]
+  [:biff.graph.fx/query [:request/email-notifications]]
 
   (fn [{:keys [session] :biff.fx/keys [now]}
        {:keys [request/email-notifications]}]
-    (if (boolean? email-notifications)
-      {:_      [:biff.sqlite.fx/authorized-write
-                {:update :user
-                 :set    {:user/unsubscribed-at (when-not email-notifications now)}
-                 :where  [:= :user/id (:uid session)]}]
-       :status 204}
-      {:status 400})))
+    {:_      [:biff.sqlite.fx/authorized-write
+              {:update :user
+               :set    {:user/unsubscribed-at (when-not email-notifications now)}
+               :where  [:= :user/id (:uid session)]}]
+     :status 204}))
 
 (def module
   {:biff.ring/routes
