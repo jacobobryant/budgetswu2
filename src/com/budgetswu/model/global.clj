@@ -8,11 +8,15 @@
   {:output [{:global/sync-states
              [:sync-state/id
               [:? :sync-state/watermark]
-              [:? :sync-state/attempted-at]]}]}
+              [:? :sync-state/attempted-at]
+              [:? :sync-state/completed-at]]}]}
 
   (fn [_ _]
     [:biff.sqlite.fx/execute
-     {:select [:sync-state/id :sync-state/watermark :sync-state/attempted-at]
+     {:select [:sync-state/id
+               :sync-state/watermark
+               :sync-state/attempted-at
+               :sync-state/completed-at]
       :from   :sync-state}])
 
   (fn [_ rows]
@@ -166,6 +170,7 @@
    [sync-states
     metas
     tournaments
+    cards
     card-sets
     standard-printings
     current-recommendations

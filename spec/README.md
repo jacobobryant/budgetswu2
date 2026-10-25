@@ -199,6 +199,12 @@ navbar includes an "Admin" link after "Settings".
 The admin page has:
 
 - A link to the default Biff dashboard (`/_biff/admin`).
+- A "Data sync" section showing when the background sync last completed
+  successfully (in UTC, or "never"), and a "Sync now" button that queues a sync
+  immediately regardless of the 12-hour interval, then shows "Sync started."
+  next to the button. Manual and scheduled syncs run one at a time, and a manual
+  request is skipped if another sync started after it was made. Any sync failure
+  is logged as an error.
 - A way to send a test notification email to the current user. It shows a
   checkbox list of the user's current recommendations (in the same order as the
   "Decks" page), all unselected by default, and a "Send test email" button. The

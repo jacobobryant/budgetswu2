@@ -1,6 +1,7 @@
 (ns com.budgetswu.work.sync-test
   (:require [cheshire.core :as json]
             [clojure.test :refer [deftest is testing]]
+            [clojure.tools.logging :as log]
             [com.budgetswu.lib.email :as email]
             [com.budgetswu.lib.notification-test :refer [deck]]
             [com.budgetswu.lib.recommendations :as recommendations]
@@ -227,6 +228,14 @@
               :watermark    nil
               :biff.fx/next :fetch-cards}
              (start {:biff.fx/now now} {:global/sync-states []}))))
+    (testing "manual syncs run unless a sync started after the request"
+      (let [states {:global/sync-states [{:sync-state/id           "job"
+                                          :sync-state/attempted-at "2026-10-12T06:00:00Z"}]}]
+        (is (= :fetch-cards
+               (:biff.fx/next (start {:biff.fx/now now} states
+                                     {:requested-at (tick/instant "2026-10-12T07:00:00Z")}))))
+        (is (nil? (start {:biff.fx/now now} states
+                         {:requested-at (tick/instant "2026-10-12T05:00:00Z")})))))
     (testing "later card syncs start from the watermark"
       (let [result (start {:biff.fx/now now}
                           {:global/sync-states [{:sync-state/id        "swu-cards"
@@ -482,13 +491,34 @@
       (is (= :notify (:biff.fx/next result))))
     (testing "notifications need a base URL and mailing address"
       (is (= :enqueue-notifications (:biff.fx/next (notify ctx {}))))
-      (is (= [:com.budgetswu.fx/log :warn]
-             (subvec (notify (dissoc ctx :com.budgetswu/base-url) {}) 0 2))))
-    (is (= {:_ [:biff.background.fx/submit-jobs
-                ::sync/notifications
-                [{:user/id 1}]]}
+      (let [result (notify (dissoc ctx :com.budgetswu/base-url) {})]
+        (is (= [:com.budgetswu.fx/log :warn] (subvec (:_ result) 0 2)))
+        (is (= :complete (:biff.fx/next result)))))
+    (is (= {:_            [:biff.background.fx/submit-jobs
+                           ::sync/notifications
+                           [{:user/id 1}]]
+            :biff.fx/next :complete}
            (enqueue-notifications ctx {:graph {:global/notification-candidates
                                                [{:user/id 1}]}})))))
+
+(deftest sync-job-complete
+  (is (= [:biff.sqlite.fx/execute-tx
+          [{:insert-into   :sync-state
+            :values        [{:sync-state/id "job" :sync-state/completed-at (str now)}]
+            :on-conflict   [:sync-state/id]
+            :do-update-set [:sync-state/id :sync-state/completed-at]}]]
+         ((:complete states) {:biff.fx/now now} {}))))
+
+(deftest run-sync
+  (testing "failures are logged instead of thrown"
+    (let [logged (atom nil)]
+      (with-redefs [sync/sync-job (fn [& _] (throw (AssertionError. "boom")))
+                    log/log*      (fn [_ level t _]
+                                    (reset! logged [level (ex-message t)]))]
+        (sync/run-sync {:biff.background/job {}})
+        (is (= [:error "boom"] @logged)))))
+  (is (= [:biff.background.fx/submit-jobs ::sync/sync [{:requested-at now}]]
+         (sync/request-sync {:requested-at now}))))
 
 (def token #uuid "00000000-0000-0000-0000-000000000009")
 

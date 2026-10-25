@@ -9,6 +9,13 @@ Admin, desktop (>=640px wide), signed in as the admin
 | +----------------------------------------------------------------------+ |
 |                                                                          |
 | +----------------------------------------------------------------------+ |
+| | Data sync                                                            | |
+| | Last completed: 2026-10-25 16:05 UTC                                 | |
+| |                                                                      | |
+| | [Sync now]  Sync started.                                            | |
+| +----------------------------------------------------------------------+ |
+|                                                                          |
+| +----------------------------------------------------------------------+ |
 | | Home page                                                            | |
 | | The home page is a static file that the sync job writes. This        | |
 | | rewrites it from the current recommendations.                        | |

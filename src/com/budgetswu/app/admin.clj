@@ -1,5 +1,6 @@
 (ns com.budgetswu.app.admin
   (:require [clojure.set :as set]
+            [clojure.string :as str]
             [com.biffweb.admin :as biff.admin]
             [com.biffweb.fx :refer [defpipeline]]
             [com.biffweb.ring :refer [defpath]]
@@ -8,12 +9,15 @@
             [com.budgetswu.lib.notification :as notification]
             [com.budgetswu.lib.recommendations :as recommendations]
             [com.budgetswu.lib.ui :as ui]
-            [com.budgetswu.routes :as routes]))
+            [com.budgetswu.routes :as routes]
+            [com.budgetswu.work.sync :as sync]
+            [tick.core :as tick]))
 
 (defpath biff-admin "/_biff/admin")
 (defpath select-deck-path "/admin/select-deck")
 (defpath send-test-email-path "/admin/test-email")
 (defpath regenerate-home-path "/admin/regenerate-home")
+(defpath sync-path "/admin/sync")
 
 (defn- save-tab-state
   "Returns an effect that upserts the tab's admin state."
@@ -50,17 +54,25 @@
         (str "Your cost " (recommendations/money price-cents) " · "
              (recommendations/day tournament-date))]]]]))
 
+(defn- timestamp [s]
+  (some-> s tick/instant (tick/in "UTC") tick/date-time (tick/truncate :minutes)
+          (str/replace "T" " ") (str " UTC")))
+
 (defpipeline admin-page
   [:biff.graph.fx/query
    [{:session/user [:user/email {:user/recommendations recommendations/fields}]}
+    {:global/sync-states [:sync-state/id [:? :sync-state/completed-at]]}
     {[:? :request/tab-state] [[:? :tab-state/admin-selected]
                               [:? :tab-state/admin-status]
-                              [:? :tab-state/home-status]]}]]
+                              [:? :tab-state/home-status]
+                              [:? :tab-state/sync-status]]}]]
 
-  (fn [request {:keys [session/user request/tab-state]}]
+  (fn [request {:keys [session/user global/sync-states request/tab-state]}]
     (let [{:user/keys [email recommendations]} user
 
-          {:tab-state/keys [admin-selected admin-status home-status]} tab-state]
+          {:tab-state/keys [admin-selected admin-status home-status sync-status]} tab-state
+
+          completed-at (sync/state-value sync-states "job" :sync-state/completed-at)]
       (ui/app-page
        request
        (ui/shell
@@ -76,6 +88,21 @@
                 :class ["font-semibold text-orange-700 underline-offset-4"
                         "hover:underline"]}
             "Open the dashboard"]])
+         (panel
+          {}
+          [:h2 {:class ["text-lg font-semibold"]} "Data sync"]
+          [:p {:class ["mt-2 text-stone-600"]}
+           "Last completed: "
+           [:span {:class ["font-medium text-stone-900"]}
+            (or (timestamp completed-at) "never")]]
+          [:div {:class ["mt-4 flex flex-wrap items-center gap-4"]}
+           [:button {:type          "button"
+                     :data-action   (sync-path)
+                     :data-on:click "@post(el.dataset.action)"
+                     :class         ["rounded-md bg-orange-700 px-4 py-2 text-sm"
+                                     "font-semibold text-white hover:bg-orange-800"]}
+            "Sync now"]
+           [:span {:class ["text-sm text-stone-600"]} sync-status]])
          (panel
           {}
           [:h2 {:class ["text-lg font-semibold"]} "Home page"]
@@ -180,6 +207,17 @@
                                             " decks.")})
      :status  204}))
 
+(defpipeline request-sync
+  [:biff.graph.fx/query [{:request/tab-state [:tab-state/id]}]]
+
+  (fn [{:keys [session] :biff.fx/keys [now]} {:keys [request/tab-state]}]
+    {:_       (sync/request-sync {:requested-at now})
+     :_status (save-tab-state
+               (:tab-state/id tab-state)
+               (:uid session)
+               {:tab-state/sync-status "Sync started."})
+     :status  204}))
+
 ;;;; Biff dashboard ============================================================
 
 (defpipeline get-users
@@ -214,4 +252,5 @@
     [(routes/admin)          {:get admin-page}]
     [(select-deck-path)      {:post select-deck}]
     [(send-test-email-path)  {:post send-test-email}]
-    [(regenerate-home-path)  {:post regenerate-home}]]})
+    [(regenerate-home-path)  {:post regenerate-home}]
+    [(sync-path)             {:post request-sync}]]})

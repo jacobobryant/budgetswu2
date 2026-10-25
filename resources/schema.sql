@@ -28,6 +28,7 @@ CREATE TABLE recommendation (
 CREATE TABLE sync_state (
   id TEXT PRIMARY KEY NOT NULL,
   attempted_at TEXT,
+  completed_at TEXT,
   watermark TEXT
 ) STRICT;
 
@@ -115,6 +116,7 @@ CREATE TABLE tab_state (
   card_page INT,
   card_search TEXT,
   home_status TEXT,
+  sync_status TEXT,
   user_id BLOB,
   FOREIGN KEY(user_id) REFERENCES user(id)
 ) STRICT;

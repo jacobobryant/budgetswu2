@@ -1,6 +1,8 @@
 (ns com.budgetswu.work.sync
   (:require [cheshire.core :as json]
             [clojure.string :as str]
+            [clojure.tools.logging :as log]
+            [com.biffweb.background :as biff.background]
             [com.biffweb.fx :refer [defmachine defpipeline]]
             [com.budgetswu.lib.email :as email]
             [com.budgetswu.lib.notification :as notification]
@@ -100,6 +102,13 @@
 (defn due? [last-attempt now]
   (or (nil? last-attempt)
       (tick/>= now (tick/>> (tick/instant last-attempt) sync-interval))))
+
+(defn requested?
+  "True when a manual sync was requested and no sync has started since."
+  [last-attempt requested-at]
+  (and (some? requested-at)
+       (or (nil? last-attempt)
+           (tick/< (tick/instant last-attempt) (tick/instant requested-at)))))
 
 ;;;; Cards =====================================================================
 
@@ -408,9 +417,13 @@
 (defmachine sync-job
   [:biff.graph.fx/query sync-states-query]
 
+  ;; Scheduled syncs run every 12 hours; manual ones (with :requested-at) run
+  ;; right away.
   :start
-  (fn [{:biff.fx/keys [now]} {:global/keys [sync-states]}]
-    (when (due? (state-value sync-states "job" :sync-state/attempted-at) now)
+  (fn [{:biff.fx/keys [now]} {:global/keys [sync-states]} & [{:keys [requested-at]}]]
+    (when (let [last-attempt (state-value sync-states "job" :sync-state/attempted-at)]
+            (or (due? last-attempt now)
+                (requested? last-attempt requested-at)))
       (let [since (state-value sync-states "swu-cards" :sync-state/watermark)]
         ;; A full card sync first deletes printings, which replaces any from
         ;; earlier data sources.
@@ -665,14 +678,37 @@
     (if (and base-url mailing-address)
       {:graph        [:biff.graph.fx/query [{:global/notification-candidates [:user/id]}]]
        :biff.fx/next :enqueue-notifications}
-      [:com.budgetswu.fx/log :warn
-       "Skipping notification emails: BASE_URL or MAILING_ADDRESS is unset"]))
+      {:_            [:com.budgetswu.fx/log :warn
+                      "Skipping notification emails: BASE_URL or MAILING_ADDRESS is unset"]
+       :biff.fx/next :complete}))
 
   :enqueue-notifications
   (fn [_ {:keys [graph]}]
-    {:_ [:biff.background.fx/submit-jobs
-         ::notifications
-         (:global/notification-candidates graph)]}))
+    {:_            [:biff.background.fx/submit-jobs
+                    ::notifications
+                    (:global/notification-candidates graph)]
+     :biff.fx/next :complete})
+
+  :complete
+  (fn [{:biff.fx/keys [now]} _]
+    [:biff.sqlite.fx/execute-tx
+     [(save-state "job" :sync-state/completed-at (str now))]]))
+
+(defn run-sync
+  "Queue consumer for ::sync. The job is sync-job's options map. Catches
+  Throwable (biff.background only catches Exception) so any failure is logged
+  as an error."
+  [{:biff.background/keys [job] :as ctx}]
+  (try
+    (sync-job ctx job)
+    (catch Throwable t
+      (log/error t "Sync job failed"))))
+
+(defn request-sync
+  "Returns an effect that queues a sync. With :requested-at, it runs even if
+  it isn't due."
+  [opts]
+  [:biff.background.fx/submit-jobs ::sync [opts]])
 
 ;;;; Notifications =============================================================
 
@@ -725,11 +761,19 @@
 
 (def module
   {:biff.background/tasks
-   [{:schedule (fn []
-                 (iterate #(tick/>> % (tick/new-duration 15 :minutes))
-                          (tick/now)))
-     :task     #'sync-job}]
+   ;; Syncs go through a single-threaded queue so that scheduled and manual
+   ;; syncs don't overlap.
+   [{:schedule      (fn []
+                      (iterate #(tick/>> % (tick/new-duration 15 :minutes))
+                               (tick/now)))
+     :task          #(biff.background/submit-jobs % ::sync [{}])
+     ;; Chime would only log a warning.
+     :error-handler (fn [e]
+                      (log/error e "Couldn't queue the sync job")
+                      true)}]
 
    :biff.background/queues
-   {::notifications {:consumer  #'notify-user
+   {::sync          {:consumer  #'run-sync
+                     :n-threads 1}
+    ::notifications {:consumer  #'notify-user
                      :n-threads 1}}})

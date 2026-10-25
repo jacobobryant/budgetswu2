@@ -102,6 +102,17 @@
            (:_status result)))
     (is (= 204 (:status result)))))
 
+(deftest request-sync
+  (let [[state] (admin/request-sync)
+
+        now    #inst "2026-10-12T00:00:00Z"
+        result (state {:session {:uid uid} :biff.fx/now now}
+                      {:request/tab-state {:tab-state/id tab-id}})]
+    (is (= [:biff.background.fx/submit-jobs :com.budgetswu.work.sync/sync [{:requested-at now}]]
+           (:_ result)))
+    (is (= (tab-state-write {:tab-state/sync-status "Sync started."}) (:_status result)))
+    (is (= 204 (:status result)))))
+
 (deftest get-users
   (let [[state] (admin/get-users)
         now     #inst "2026-10-12T00:00:00Z"]

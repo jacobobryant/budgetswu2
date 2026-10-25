@@ -16,6 +16,7 @@
    :tab-state/admin-selected (s/edn [:set :string])
    :tab-state/admin-status   (s/text)
    :tab-state/home-status    (s/text)
+   :tab-state/sync-status    (s/text)
 
    :user/id                   s/pkey
    :user/email                (s/text :required :unique)
@@ -84,6 +85,7 @@
    :sync-state/id           (s/text {:primary-key true})
    :sync-state/watermark    (s/text)
    :sync-state/attempted-at (s/text)
+   :sync-state/completed-at (s/text)
 
    :recommendation/id   (s/text {:primary-key true})
    :recommendation/rank (s/int :required)})
